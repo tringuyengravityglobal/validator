@@ -34,6 +34,7 @@ var NuScript = {};
 NuScript.idCount = 0;
 var urlInput = null
 var multiUrlInput = null
+var multiUrlModeInput = null
 var fileInput = null
 var textarea = null
 var textareaHidden = null
@@ -111,9 +112,8 @@ function initFieldHolders() {
 		fileInput.setAttribute('autofocus','')
 		fileInput.setAttribute('tabindex','0')
 	}
-	multiUrlInput = createHtmlElement('input')
+	multiUrlInput = createHtmlElement('textarea')
 	if (multiUrlInput) {
-		multiUrlInput.type = 'text'
 		multiUrlInput.id = 'doc'
 		multiUrlInput.name = 'doc'
 		multiUrlInput.setAttribute('aria-labelledby', 'docselect')
@@ -121,6 +121,14 @@ function initFieldHolders() {
 		multiUrlInput.setAttribute('autofocus','')
 		multiUrlInput.setAttribute('tabindex','0')
 		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)')
+		multiUrlInput.cols = 72
+		multiUrlInput.rows = 10
+	}
+	multiUrlModeInput = createHtmlElement('input')
+	if (multiUrlModeInput) {
+		multiUrlModeInput.type = 'hidden'
+		multiUrlModeInput.name = 'multiurl'
+		multiUrlModeInput.value = 'yes'
 	}
 	var label = document.getElementById("inputlabel");
 	var disabledAddressType = label.getAttribute('data-allowed-address-type') === 'none'
@@ -275,8 +283,25 @@ function formSubmission() {
 		}
 	}
 	disableByIdIfEmptyString("doc")
-	if (textareaHidden && textarea) {
-		textareaHidden.value = textarea.value
+	var modeSelect = document.getElementById('docselect')
+	if (modeSelect) {
+		if (modeSelect.value === 'textarea' && textareaHidden && textarea) {
+			textareaHidden.value = textarea.value
+		} else if (modeSelect.value === 'multiurl') {
+			// Multi URLs mode - remove textareaHidden if present
+			if (textareaHidden && textareaHidden.parentNode) {
+				textareaHidden.parentNode.removeChild(textareaHidden)
+			}
+		} else {
+			// Address/URL mode - remove multiurl hidden input and textareaHidden
+			var multiUrlModeField = document.querySelector('input[name="multiurl"]')
+			if (multiUrlModeField && multiUrlModeField.parentNode) {
+				multiUrlModeField.parentNode.removeChild(multiUrlModeField)
+			}
+			if (textareaHidden && textareaHidden.parentNode) {
+				textareaHidden.parentNode.removeChild(textareaHidden)
+			}
+		}
 	}
 	return true
 }
@@ -554,6 +579,14 @@ function installMultiUrlInput() {
 			}
 			input.parentNode.replaceChild(multiUrlInput, input)
 			reflow(multiUrlInput)
+			
+			// Add hidden input to indicate multi URL mode
+			if (multiUrlModeInput && !document.querySelector('input[name="multiurl"]')) {
+				var submit = document.getElementById("submit")
+				if (submit && submit.parentNode) {
+					submit.parentNode.insertBefore(multiUrlModeInput, submit)
+				}
+			}
 		}
 	}
 	if (textareaHidden && textareaHidden.parentNode) {
