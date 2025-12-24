@@ -33,6 +33,7 @@
 var NuScript = {};
 NuScript.idCount = 0;
 var urlInput = null
+var multiUrlInput = null
 var fileInput = null
 var textarea = null
 var textareaHidden = null
@@ -110,6 +111,17 @@ function initFieldHolders() {
 		fileInput.setAttribute('autofocus','')
 		fileInput.setAttribute('tabindex','0')
 	}
+	multiUrlInput = createHtmlElement('input')
+	if (multiUrlInput) {
+		multiUrlInput.type = 'text'
+		multiUrlInput.id = 'doc'
+		multiUrlInput.name = 'doc'
+		multiUrlInput.setAttribute('aria-labelledby', 'docselect')
+		multiUrlInput.setAttribute('required','')
+		multiUrlInput.setAttribute('autofocus','')
+		multiUrlInput.setAttribute('tabindex','0')
+		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)')
+	}
 	var label = document.getElementById("inputlabel");
 	var disabledAddressType = label.getAttribute('data-allowed-address-type') === 'none'
 	label.removeAttribute("for")
@@ -121,6 +133,7 @@ function initFieldHolders() {
 		addressOption.disabled = true
 	}
 	modeSelect.appendChild(addressOption)
+	modeSelect.appendChild(createOption('multi URLs', 'multiurl'))
 	modeSelect.appendChild(createOption('file upload', 'file'))
 	modeSelect.appendChild(createOption('text input', 'textarea'))
 	modeSelect.onchange = function() {
@@ -130,6 +143,9 @@ function initFieldHolders() {
 		} else if (this.value == 'textarea') {
 			installTextarea()
 			location.hash = '#textarea'
+		} else if (this.value == 'multiurl') {
+			installMultiUrlInput()
+			location.hash = '#multiurl'
 		} else {
 			installUrlInput()
 			history.pushState(null, document.title, location.pathname);
@@ -157,6 +173,10 @@ function initFieldHolders() {
 		installFileUpload()
 		location.hash = '#file'
 		modeSelect.value = 'file'
+	} else if (location.hash == '#multiurl') {
+		installMultiUrlInput()
+		location.hash = '#multiurl'
+		modeSelect.value = 'multiurl'
 	} else {
 		if (location.hash == '#textarea' || disabledAddressType) {
 			installTextarea()
@@ -168,6 +188,10 @@ function initFieldHolders() {
 				installFileUpload()
 				location.hash = '#file'
 				modeSelect.value = 'file'
+			} else if (supportsLocalStorage() && localStorage["lastInputMode"] == 'multiurl') {
+				installMultiUrlInput()
+				location.hash = '#multiurl'
+				modeSelect.value = 'multiurl'
 			} else if (supportsLocalStorage() && localStorage["lastInputMode"] == 'textarea') {
 				installTextarea()
 				location.hash = '#textarea'
@@ -508,6 +532,28 @@ function installFileUpload() {
 					.appendChild(xnote)
 			}
 			reflow(fileInput)
+		}
+	}
+	if (textareaHidden && textareaHidden.parentNode) {
+		textareaHidden.parentNode.removeChild(textareaHidden)
+	}
+}
+
+function installMultiUrlInput() {
+	var input = document.getElementById('doc')
+	if (input && multiUrlInput) {
+		var form = document.forms[0]
+		if (form) {
+			if (document.getElementById("csslabel")) {
+				input.parentNode.removeChild(document.getElementById("csslabel"))
+			}
+			form.method = 'get'
+			form.enctype = ''
+			if (document.getElementById("xnote")) {
+				input.parentNode.removeChild(document.getElementById("xnote"))
+			}
+			input.parentNode.replaceChild(multiUrlInput, input)
+			reflow(multiUrlInput)
 		}
 	}
 	if (textareaHidden && textareaHidden.parentNode) {
