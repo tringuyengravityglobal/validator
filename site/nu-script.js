@@ -135,11 +135,12 @@ function initFieldHolders() {
 	label.textContent = "Check by"
 	var modeSelect = createHtmlElement("select")
 	modeSelect.id = 'docselect'
-	var addressOption = createOption('address', '')
-	if (disabledAddressType) {
-		addressOption.disabled = true
-	}
-	modeSelect.appendChild(addressOption)
+	// Remove "address" option from dropdown
+	// var addressOption = createOption('address', '')
+	// if (disabledAddressType) {
+	// 	addressOption.disabled = true
+	// }
+	// modeSelect.appendChild(addressOption)
 	modeSelect.appendChild(createOption('multi URLs', 'multiurl'))
 	modeSelect.appendChild(createOption('file upload', 'file'))
 	modeSelect.appendChild(createOption('text input', 'textarea'))
