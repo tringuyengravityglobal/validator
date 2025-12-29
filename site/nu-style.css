@@ -1123,3 +1123,13 @@ input#acceptlanguage {
 .url-results-content.collapsed {
 	display: none;
 }
+
+.messages-section {
+	margin-bottom: 20px;
+}
+
+.source-section {
+	margin-top: 20px;
+	border-top: 2px solid #ccc;
+	padding-top: 15px;
+}

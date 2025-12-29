@@ -1228,6 +1228,12 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		}
 	}
 	
+	// Check if showsource checkbox is checked
+	var showSourceCheckbox = document.getElementById('showsource')
+	if (showSourceCheckbox && showSourceCheckbox.checked) {
+		formData.append('showsource', 'yes')
+	}
+	
 	// Make AJAX request
 	var xhr = new XMLHttpRequest()
 	var requestUrl = window.location.pathname + '?' + formData.toString()
@@ -1243,10 +1249,25 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 			var resultsOl = doc.querySelector('#results > ol:first-child')
 			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
 			
+			// Extract source code if available
+			var sourceHeading = doc.getElementById('source')
+			var sourceList = null
+			if (sourceHeading) {
+				var nextSibling = sourceHeading.nextSibling
+				while (nextSibling && nextSibling.nodeType != 1) {
+					nextSibling = nextSibling.nextSibling
+				}
+				if (nextSibling && nextSibling.className == 'source') {
+					sourceList = nextSibling.cloneNode(true)
+				}
+			}
+			
 			allResults.urls[index] = {
 				url: url,
 				results: resultsOl ? resultsOl.cloneNode(true) : null,
-				status: successFailure ? successFailure.cloneNode(true) : null
+				status: successFailure ? successFailure.cloneNode(true) : null,
+				sourceHeading: sourceHeading ? sourceHeading.cloneNode(true) : null,
+				sourceList: sourceList
 			}
 			
 			allResults.completed++
@@ -1391,15 +1412,35 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			errorMsg.textContent = 'Failed to validate: ' + urlResult.error
 			resultsContent.appendChild(errorMsg)
 		} else {
+			// Errors/Warnings Section
+			var messagesSection = createHtmlElement('div')
+			messagesSection.className = 'messages-section'
+			
 			if (urlResult.status) {
-				resultsContent.appendChild(urlResult.status)
+				messagesSection.appendChild(urlResult.status)
 			}
 			if (urlResult.results) {
-				resultsContent.appendChild(urlResult.results)
+				messagesSection.appendChild(urlResult.results)
 			} else {
 				var noResults = createHtmlElement('p')
 				noResults.textContent = 'No validation results available.'
-				resultsContent.appendChild(noResults)
+				messagesSection.appendChild(noResults)
+			}
+			
+			resultsContent.appendChild(messagesSection)
+			
+			// Source Code Section
+			if (urlResult.sourceHeading && urlResult.sourceList) {
+				var sourceSection = createHtmlElement('div')
+				sourceSection.className = 'source-section'
+				sourceSection.style.marginTop = '20px'
+				sourceSection.style.borderTop = '2px solid #ccc'
+				sourceSection.style.paddingTop = '15px'
+				
+				sourceSection.appendChild(urlResult.sourceHeading)
+				sourceSection.appendChild(urlResult.sourceList)
+				
+				resultsContent.appendChild(sourceSection)
 			}
 		}
 		
