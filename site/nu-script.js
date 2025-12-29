@@ -375,17 +375,39 @@ function injectHyperlinks() {
 function replaceSuccessFailure() {
 	successfailure = document.querySelector(".success, .failure")
 	if (successfailure === null) return
+	
+	// Check if we're in multi-URL mode
+	var isMultiUrl = document.getElementById('multi-url-results') !== null
+	
 	if (document.querySelector(".non-document-error") !== null) {
 		successfailure.className = "fatalfailure"
 		successfailure.textContent = "Document checking not completed."
 		successfailure.textContent += " The result cannot be determined due to a non-document-error."
-	} else if (document.querySelector(".error:not(.hidden), .warning:not(.hidden)") !== null) {
-		successfailure.className = "failure"
-		successfailure.textContent = "Document checking completed."
 	} else {
-		successfailure.className = "success"
-		successfailure.textContent = "Document checking completed. No errors or warnings to show."
+		// In multi-URL mode, check for visible errors/warnings within the multi-URL container
+		var hasVisibleErrors
+		if (isMultiUrl) {
+			var multiUrlContainer = document.getElementById('multi-url-results')
+			hasVisibleErrors = multiUrlContainer && multiUrlContainer.querySelector(".error:not(.hidden), .warning:not(.hidden)") !== null
+		} else {
+			hasVisibleErrors = document.querySelector(".error:not(.hidden), .warning:not(.hidden)") !== null
+		}
+		
+		if (hasVisibleErrors) {
+			successfailure.className = "failure"
+			// In multi-URL mode, keep the original text with counts
+			if (!isMultiUrl) {
+				successfailure.textContent = "Document checking completed."
+			}
+		} else {
+			successfailure.className = "success"
+			// In multi-URL mode, keep the original text with counts
+			if (!isMultiUrl) {
+				successfailure.textContent = "Document checking completed. No errors or warnings to show."
+			}
+		}
 	}
+	
 	if (document.querySelector("#results > ol:first-child") !== null) {
 		if (document.querySelector("#results > ol:first-child li:not(.hidden)") === null) {
 			document.querySelector("#results > ol:first-child").className = "hidden"
@@ -765,9 +787,21 @@ function initFilters() {
 		return
 	}
 
-	errors = document.getElementsByClassName("error")
-	warnings = document.getElementsByClassName('warning')
-	info = document.querySelectorAll('[class=info]')
+	// Check if we're in multi-URL mode
+	var isMultiUrl = document.getElementById('multi-url-results') !== null
+
+	if (isMultiUrl) {
+		// In multi-URL mode, find messages within the multi-URL container
+		var multiUrlContainer = document.getElementById('multi-url-results')
+		errors = multiUrlContainer.querySelectorAll('.error')
+		warnings = multiUrlContainer.querySelectorAll('.warning')
+		info = multiUrlContainer.querySelectorAll('[class=info]')
+	} else {
+		// In single-URL mode, use the standard approach
+		errors = document.getElementsByClassName("error")
+		warnings = document.getElementsByClassName('warning')
+		info = document.querySelectorAll('[class=info]')
+	}
 
 	if (errors.length === 0 && warnings.length === 0 && info.length === 0) {
 		// If there are no messages, we don’t need filtering
@@ -964,8 +998,19 @@ function initFilters() {
 	}
 
 	showCount = function() {
-		var count = document.querySelectorAll("body ol > li.hidden"),
-			span
+		var count, span
+		
+		// In multi-URL mode, count hidden messages within the multi-URL container
+		if (isMultiUrl) {
+			var multiUrlContainer = document.getElementById('multi-url-results')
+			count = multiUrlContainer ? multiUrlContainer.querySelectorAll("li.hidden") : []
+			
+			// Update the overall status with current visible counts
+			updateMultiUrlOverallStatus(multiUrlContainer)
+		} else {
+			count = document.querySelectorAll("body ol > li.hidden")
+		}
+		
 		span = document.querySelector(".filtercount")
 		if (span) {
 			span.parentNode.removeChild(span)
@@ -986,7 +1031,20 @@ function initFilters() {
 	showCount()
 
 	mainForm = document.getElementsByTagName("form")[0]
-	mainForm.parentNode.insertBefore(filters, mainForm.nextSibling)
+	
+	// In multi-URL mode, insert filters after the results div's first heading
+	// In single-URL mode, insert after the form
+	if (isMultiUrl) {
+		var resultsDiv = document.getElementById('results')
+		var firstHeading = resultsDiv.querySelector('h2')
+		if (firstHeading && firstHeading.nextSibling) {
+			resultsDiv.insertBefore(filters, firstHeading.nextSibling)
+		} else {
+			resultsDiv.appendChild(filters)
+		}
+	} else {
+		mainForm.parentNode.insertBefore(filters, mainForm.nextSibling)
+	}
 	document.querySelector("*[autofocus]").removeAttribute("autofocus")
 	document.querySelector("*[tabindex]").removeAttribute("tabindex")
 	fieldsets = filters.getElementsByTagName("fieldset")
@@ -1248,6 +1306,20 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 			var resultsOl = doc.querySelector('#results > ol:first-child')
 			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
 			
+			// Clone and update IDs to make them unique for multi-URL
+			var clonedResultsOl = null
+			if (resultsOl) {
+				clonedResultsOl = resultsOl.cloneNode(true)
+				// Update all message IDs to include URL index
+				var messages = clonedResultsOl.querySelectorAll('li[id^="vnuId"]')
+				messages.forEach(function(msg) {
+					if (msg.id) {
+						msg.setAttribute('data-original-id', msg.id)
+						msg.id = 'url' + index + '_' + msg.id
+					}
+				})
+			}
+			
 			// Extract source code if available
 			var sourceHeading = doc.getElementById('source')
 			var sourceList = null
@@ -1263,7 +1335,7 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 			
 			allResults.urls[index] = {
 				url: url,
-				results: resultsOl ? resultsOl.cloneNode(true) : null,
+				results: clonedResultsOl,
 				status: successFailure ? successFailure.cloneNode(true) : null,
 				sourceHeading: sourceHeading ? sourceHeading.cloneNode(true) : null,
 				sourceList: sourceList
@@ -1327,6 +1399,32 @@ function updateValidationProgress(allResults, resultsDiv) {
 	}
 }
 
+function updateMultiUrlOverallStatus(multiUrlContainer) {
+	if (!multiUrlContainer) return
+	
+	var overallStatus = document.getElementById('multi-url-overall-status')
+	if (!overallStatus) return
+	
+	var totalUrls = parseInt(overallStatus.getAttribute('data-total-urls') ?? '0')
+	
+	// Count visible errors and warnings
+	var visibleErrors = multiUrlContainer.querySelectorAll('.error:not(.hidden)')
+	var visibleWarnings = multiUrlContainer.querySelectorAll('.warning:not(.hidden)')
+	
+	var errorCount = visibleErrors.length
+	var warningCount = visibleWarnings.length
+	var hasErrors = errorCount > 0
+	
+	// Update the status text and class
+	if (hasErrors || warningCount > 0) {
+		overallStatus.className = 'failure'
+		overallStatus.textContent = 'Validation completed for ' + totalUrls + ' URL(s). Found ' + errorCount + ' error(s) and ' + warningCount + ' warning(s).'
+	} else {
+		overallStatus.className = 'success'
+		overallStatus.textContent = 'Validation completed for ' + totalUrls + ' URL(s). No errors or warnings to show.'
+	}
+}
+
 function displayMultiUrlResults(allResults, resultsDiv) {
 	resultsDiv.innerHTML = ''
 	
@@ -1348,6 +1446,10 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	
 	// Display overall status
 	var overallStatus = createHtmlElement('h2')
+	overallStatus.id = 'multi-url-overall-status'
+	overallStatus.setAttribute('data-total-urls', allResults.total)
+	overallStatus.setAttribute('data-total-errors', totalErrors)
+	overallStatus.setAttribute('data-total-warnings', totalWarnings)
 	if (hasErrors) {
 		overallStatus.className = 'failure'
 		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). Found ' + totalErrors + ' error(s) and ' + totalWarnings + ' warning(s).'
