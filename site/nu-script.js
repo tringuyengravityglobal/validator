@@ -288,10 +288,9 @@ function formSubmission() {
 		if (modeSelect.value === 'textarea' && textareaHidden && textarea) {
 			textareaHidden.value = textarea.value
 		} else if (modeSelect.value === 'multiurl') {
-			// Multi URLs mode - remove textareaHidden if present
-			if (textareaHidden && textareaHidden.parentNode) {
-				textareaHidden.parentNode.removeChild(textareaHidden)
-			}
+			// Multi URLs mode - handle client-side validation
+			handleMultiUrlValidation()
+			return false // Prevent default form submission
 		} else {
 			// Address/URL mode - remove multiurl hidden input and textareaHidden
 			var multiUrlModeField = document.querySelector('input[name="multiurl"]')
@@ -1169,4 +1168,266 @@ function supportsLocalStorage() {
 	} catch (e) {
 		return false
 	}
+}
+
+// Multi-URL validation functions
+function handleMultiUrlValidation() {
+	var urlsTextarea = document.getElementById('doc')
+	if (!urlsTextarea) return
+	
+	var urlsText = urlsTextarea.value.trim()
+	if (!urlsText) return
+	
+	// Split by newlines and filter out empty lines
+	var urls = urlsText.split('\n')
+		.map(function(url) { return url.trim() })
+		.filter(function(url) { return url.length > 0 })
+	
+	if (urls.length === 0) return
+	
+	// Clear results area and show loading message
+	var resultsDiv = document.getElementById('results')
+	if (!resultsDiv) return
+	
+	resultsDiv.innerHTML = '<h2 class="success">Validating ' + urls.length + ' URL(s)...</h2>'
+	
+	// Create container for all URL results
+	var allResults = {
+		urls: [],
+		completed: 0,
+		total: urls.length
+	}
+	
+	// Validate each URL
+	urls.forEach(function(url, index) {
+		validateSingleUrl(url, index, allResults, resultsDiv)
+	})
+}
+
+function validateSingleUrl(url, index, allResults, resultsDiv) {
+	var form = document.getElementsByTagName("form")[0]
+	if (!form) return
+	
+	// Get form parameters
+	var formData = new URLSearchParams()
+	formData.append('doc', url)
+	formData.append('out', 'html')
+	
+	// Add other form parameters (parser, charset, etc.)
+	var inputs = form.querySelectorAll('input:not([type="hidden"]):not([name="doc"]):not([name="multiurl"]), select')
+	for (var i = 0; i < inputs.length; i++) {
+		var input = inputs[i]
+		if (input.name && input.value) {
+			if (input.type === 'checkbox') {
+				if (input.checked) {
+					formData.append(input.name, input.value)
+				}
+			} else {
+				formData.append(input.name, input.value)
+			}
+		}
+	}
+	
+	// Make AJAX request
+	var xhr = new XMLHttpRequest()
+	var requestUrl = window.location.pathname + '?' + formData.toString()
+	xhr.open('GET', requestUrl, true)
+	
+	xhr.onload = function() {
+		if (xhr.status >= 200 && xhr.status < 400) {
+			// Parse response HTML
+			var parser = new DOMParser()
+			var doc = parser.parseFromString(xhr.responseText, 'text/html')
+			
+			// Extract results
+			var resultsOl = doc.querySelector('#results > ol:first-child')
+			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
+			
+			allResults.urls[index] = {
+				url: url,
+				results: resultsOl ? resultsOl.cloneNode(true) : null,
+				status: successFailure ? successFailure.cloneNode(true) : null
+			}
+			
+			allResults.completed++
+			
+			// Update progress
+			updateValidationProgress(allResults, resultsDiv)
+			
+			// If all URLs are validated, display results
+			if (allResults.completed === allResults.total) {
+				displayMultiUrlResults(allResults, resultsDiv)
+			}
+		} else {
+			// Error handling
+			allResults.urls[index] = {
+				url: url,
+				results: null,
+				status: null,
+				error: 'HTTP Error: ' + xhr.status
+			}
+			
+			allResults.completed++
+			
+			// Update progress
+			updateValidationProgress(allResults, resultsDiv)
+			
+			if (allResults.completed === allResults.total) {
+				displayMultiUrlResults(allResults, resultsDiv)
+			}
+		}
+	}
+	
+	xhr.onerror = function() {
+		allResults.urls[index] = {
+			url: url,
+			results: null,
+			status: null,
+			error: 'Network error'
+		}
+		
+		allResults.completed++
+		
+		// Update progress
+		updateValidationProgress(allResults, resultsDiv)
+		
+		if (allResults.completed === allResults.total) {
+			displayMultiUrlResults(allResults, resultsDiv)
+		}
+	}
+	
+	xhr.send()
+}
+
+function updateValidationProgress(allResults, resultsDiv) {
+	var progressText = 'Validating URLs... (' + allResults.completed + '/' + allResults.total + ' completed)'
+	var statusElement = resultsDiv.querySelector('h2')
+	if (statusElement) {
+		statusElement.textContent = progressText
+	}
+}
+
+function displayMultiUrlResults(allResults, resultsDiv) {
+	resultsDiv.innerHTML = ''
+	
+	// Count total errors and warnings
+	var totalErrors = 0
+	var totalWarnings = 0
+	var hasErrors = false
+	
+	allResults.urls.forEach(function(urlResult) {
+		if (urlResult.results) {
+			var errors = urlResult.results.querySelectorAll('.error')
+			var warnings = urlResult.results.querySelectorAll('.warning')
+			totalErrors += errors.length
+			totalWarnings += warnings.length
+			if (errors.length > 0) hasErrors = true
+		}
+		if (urlResult.error) hasErrors = true
+	})
+	
+	// Display overall status
+	var overallStatus = createHtmlElement('h2')
+	if (hasErrors) {
+		overallStatus.className = 'failure'
+		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). Found ' + totalErrors + ' error(s) and ' + totalWarnings + ' warning(s).'
+	} else {
+		overallStatus.className = 'success'
+		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). No errors found.'
+	}
+	resultsDiv.appendChild(overallStatus)
+	
+	// Create container for all URL results
+	var urlResultsContainer = createHtmlElement('div')
+	urlResultsContainer.id = 'multi-url-results'
+	urlResultsContainer.style.marginTop = '20px'
+	
+	// Display results for each URL
+	allResults.urls.forEach(function(urlResult, index) {
+		var urlSection = createHtmlElement('div')
+		urlSection.className = 'url-result-section'
+		
+		// URL header with toggle
+		var urlHeader = createHtmlElement('div')
+		urlHeader.className = 'url-header'
+		
+		var toggleIcon = createHtmlElement('span')
+		toggleIcon.className = 'toggle-icon'
+		toggleIcon.textContent = '▼'
+		
+		var urlText = createHtmlElement('span')
+		urlText.className = 'url-text'
+		urlText.textContent = ' URL ' + (index + 1) + ': ' + urlResult.url
+		
+		// Count errors and warnings for this URL
+		var errorCount = 0
+		var warningCount = 0
+		if (urlResult.results) {
+			errorCount = urlResult.results.querySelectorAll('.error').length
+			warningCount = urlResult.results.querySelectorAll('.warning').length
+		}
+		
+		var countText = createHtmlElement('span')
+		countText.className = 'count-text'
+		if (urlResult.error) {
+			countText.textContent = '(Error: ' + urlResult.error + ')'
+			countText.className += ' error'
+		} else {
+			countText.textContent = '(' + errorCount + ' error(s), ' + warningCount + ' warning(s))'
+		}
+		
+		urlHeader.appendChild(toggleIcon)
+		urlHeader.appendChild(urlText)
+		urlHeader.appendChild(countText)
+		
+		// Results content (initially visible)
+		var resultsContent = createHtmlElement('div')
+		resultsContent.className = 'url-results-content'
+		
+		if (urlResult.error) {
+			var errorMsg = createHtmlElement('p')
+			errorMsg.style.color = '#f00'
+			errorMsg.style.padding = '10px'
+			errorMsg.textContent = 'Failed to validate: ' + urlResult.error
+			resultsContent.appendChild(errorMsg)
+		} else {
+			if (urlResult.status) {
+				resultsContent.appendChild(urlResult.status)
+			}
+			if (urlResult.results) {
+				resultsContent.appendChild(urlResult.results)
+			} else {
+				var noResults = createHtmlElement('p')
+				noResults.textContent = 'No validation results available.'
+				resultsContent.appendChild(noResults)
+			}
+		}
+		
+		// Toggle functionality
+		var isExpanded = true
+		urlHeader.onclick = function() {
+			isExpanded = !isExpanded
+			if (isExpanded) {
+				resultsContent.className = 'url-results-content'
+				toggleIcon.style.transform = 'rotate(0deg)'
+			} else {
+				resultsContent.className = 'url-results-content collapsed'
+				toggleIcon.style.transform = 'rotate(-90deg)'
+			}
+		}
+		
+		urlSection.appendChild(urlHeader)
+		urlSection.appendChild(resultsContent)
+		urlResultsContainer.appendChild(urlSection)
+	})
+	
+	resultsDiv.appendChild(urlResultsContainer)
+	
+	// Re-initialize filters and other UI enhancements
+	setTimeout(function() {
+		initFilters()
+		injectHyperlinks()
+		moveLangAndDirWarningsAndAddLinks()
+		replaceSuccessFailure()
+	}, 100)
 }

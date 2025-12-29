@@ -1067,3 +1067,59 @@ input#acceptlanguage {
 .missingheading {
 	color: #747474;
 }
+
+/* Multi-URL validation results */
+#multi-url-results {
+	margin-top: 20px;
+}
+
+.url-result-section {
+	margin-bottom: 20px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 10px;
+	background-color: #f9f9f9;
+}
+
+.url-result-section .url-header {
+	cursor: pointer;
+	font-weight: bold;
+	padding: 10px;
+	background-color: #fff;
+	border-radius: 4px;
+	margin-bottom: 10px;
+	transition: background-color 0.2s;
+}
+
+.url-result-section .url-header:hover {
+	background-color: #f5f5f5;
+}
+
+.url-result-section .toggle-icon {
+	display: inline-block;
+	transition: transform 0.3s;
+	margin-right: 5px;
+}
+
+.url-result-section .url-text {
+	font-family: Monaco, Consolas, "Andale Mono", monospace;
+}
+
+.url-result-section .count-text {
+	margin-left: 10px;
+	color: #666;
+	font-weight: normal;
+	font-size: 0.9em;
+}
+
+.url-result-section .count-text.error {
+	color: #f00;
+}
+
+.url-results-content {
+	display: block;
+}
+
+.url-results-content.collapsed {
+	display: none;
+}
