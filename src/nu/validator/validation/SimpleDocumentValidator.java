@@ -25,16 +25,24 @@ package nu.validator.validation;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import nu.validator.checker.jing.CheckerSchema;
 import nu.validator.checker.jing.CheckerValidator;
 import nu.validator.checker.table.TableChecker;
+import nu.validator.checker.DuplicateDtChecker;
 import nu.validator.checker.MicrodataChecker;
 import nu.validator.checker.NormalizationChecker;
+import nu.validator.checker.SpeculationRulesChecker;
 import nu.validator.checker.TextContentChecker;
 import nu.validator.checker.UncheckedSubtreeWarner;
 import nu.validator.checker.UsemapChecker;
@@ -316,9 +324,13 @@ public class SimpleDocumentValidator {
             validator = new CombineValidator(validator, new CheckerValidator(
                     new TableChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
+                    new DuplicateDtChecker(), jingPropertyMap));
+            validator = new CombineValidator(validator, new CheckerValidator(
                     new MicrodataChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
                     new NormalizationChecker(), jingPropertyMap));
+            validator = new CombineValidator(validator, new CheckerValidator(
+                    new SpeculationRulesChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
                     new TextContentChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
@@ -472,6 +484,12 @@ public class SimpleDocumentValidator {
     public void checkHttpURL(String document, String userAgent,
             ErrorHandler errorHandler)
             throws IOException, SAXException {
+        checkHttpURL(document, userAgent, errorHandler, null);
+    }
+
+    public void checkHttpURL(String document, String userAgent,
+            ErrorHandler errorHandler, Map<String, String> additionalHeaders)
+            throws IOException, SAXException {
         CookieHandler.setDefault(
                 new CookieManager(null, CookiePolicy.ACCEPT_ALL));
         validator.reset();
@@ -481,6 +499,9 @@ public class SimpleDocumentValidator {
         }
         httpRes.setAllowHtml(true);
         httpRes.setUserAgent(userAgent);
+        if (additionalHeaders != null && !additionalHeaders.isEmpty()) {
+            httpRes.setAdditionalRequestHeaders(additionalHeaders);
+        }
         try {
             documentInput = (TypedInputSource) httpRes.resolveEntity(null,
                     document);
@@ -513,7 +534,7 @@ public class SimpleDocumentValidator {
         }
         List<InputStream> streamsList = new ArrayList<>();
         streamsList.add(new ByteArrayInputStream(CSS_CHECKING_PROLOG));
-        streamsList.add(is.getByteStream());
+        streamsList.add(new BOMStripperInputStream(is.getByteStream()));
         streamsList.add(new ByteArrayInputStream(CSS_CHECKING_EPILOG));
         Enumeration<InputStream> streams = Collections.enumeration(streamsList);
         is.setByteStream(new SequenceInputStream(streams));
@@ -547,6 +568,69 @@ public class SimpleDocumentValidator {
             xmlReader.parse(is);
         } catch (SAXParseException e) {
         } catch (FatalSAXException e) {
+        }
+    }
+
+    private static class BOMStripperInputStream extends FilterInputStream {
+        private boolean firstRead = true;
+        private byte[] buffer = null;
+        private int bufferPos = 0;
+        private int bufferLen = 0;
+
+        protected BOMStripperInputStream(InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (firstRead) {
+                firstRead = false;
+                checkAndSkipBOM();
+            }
+            if (buffer != null && bufferPos < bufferLen) {
+                return buffer[bufferPos++] & 0xFF;
+            }
+            return super.read();
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (firstRead) {
+                firstRead = false;
+                checkAndSkipBOM();
+            }
+            if (buffer != null && bufferPos < bufferLen) {
+                int bytesToCopy = Math.min(len, bufferLen - bufferPos);
+                System.arraycopy(buffer, bufferPos, b, off, bytesToCopy);
+                bufferPos += bytesToCopy;
+                if (bytesToCopy == len) {
+                    return bytesToCopy;
+                }
+                int additionalBytes = super.read(b, off + bytesToCopy, len - bytesToCopy);
+                if (additionalBytes > 0) {
+                    return bytesToCopy + additionalBytes;
+                }
+                return bytesToCopy;
+            }
+            return super.read(b, off, len);
+        }
+
+        private void checkAndSkipBOM() throws IOException {
+            byte[] bom = new byte[3];
+            int bytesRead = super.read(bom, 0, 3);
+            
+            if (bytesRead >= 3 && bom[0] == (byte)0xEF && 
+                bom[1] == (byte)0xBB && bom[2] == (byte)0xBF) {
+                // BOM found, skip it
+                return;
+            }
+            
+            // No BOM, save the bytes we read to return later
+            if (bytesRead > 0) {
+                buffer = bom;
+                bufferPos = 0;
+                bufferLen = bytesRead;
+            }
         }
     }
 

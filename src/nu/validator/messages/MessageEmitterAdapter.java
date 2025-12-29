@@ -36,6 +36,7 @@ import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import nu.validator.checker.InfoAwareErrorHandler;
 import nu.validator.checker.NormalizationChecker;
 import nu.validator.checker.DatatypeMismatchException;
 import nu.validator.checker.VnuBadAttrValueException;
@@ -86,7 +87,7 @@ import org.apache.log4j.Logger;
 import com.ibm.icu.text.Normalizer;
 
 @SuppressWarnings("unchecked")
-public class MessageEmitterAdapter implements ErrorHandler {
+public class MessageEmitterAdapter implements InfoAwareErrorHandler {
 
     private static final Logger log4j = Logger.getLogger(MessageEmitterAdapter.class);
 
@@ -599,6 +600,12 @@ public class MessageEmitterAdapter implements ErrorHandler {
                 if (dex instanceof Html5DatatypeException) {
                     Html5DatatypeException ex5 = (Html5DatatypeException) dex;
                     if (ex5.isWarning()) {
+                        String message = ex5.getMessage();
+                        if (message != null && message.contains("Typo for")) {
+                            messageFromSAXParseException(MessageType.INFO, e,
+                                    exact, null);
+                            return;
+                        }
                         this.warnings++;
                         throwIfTooManyMessages();
                         messageFromSAXParseException(MessageType.WARNING, e,
@@ -659,11 +666,34 @@ public class MessageEmitterAdapter implements ErrorHandler {
         }
     }
 
+    @Override
+    public void info(SAXParseException e) throws SAXException {
+        info(e, false);
+    }
+
+    /**
+     * Convenience method for emitting info messages with just a string.
+     * This creates a SAXParseException without location information.
+     * For messages with location info, use the info(SAXParseException) method
+     * from InfoAwareErrorHandler interface.
+     *
+     * @param str the info message
+     * @throws SAXException if something goes wrong
+     */
     public void info(String str) throws SAXException {
-        if (emitter instanceof GnuMessageEmitter)
-            return;
         message(MessageType.INFO, new Exception(str), null, -1, -1, false,
                 null);
+    }
+
+    private void info(SAXParseException e, boolean exact) throws SAXException {
+        if (emitter == null) {
+            return;
+        }
+        if ((!batchMode && fatalErrors > 0) || nonDocumentErrors > 0) {
+            return;
+        }
+        throwIfTooManyMessages();
+        messageFromSAXParseException(MessageType.INFO, e, exact, null);
     }
 
     public void ioError(IOException e) throws SAXException {
@@ -872,7 +902,7 @@ public class MessageEmitterAdapter implements ErrorHandler {
         if (errorsOnly && type.getSuperType() == "info") {
             return;
         }
-        String uri = sourceCode.getUri();
+        String uri = sourceCode != null ? sourceCode.getUri() : null;
         if (oneBasedLine > -1
                 && (uri == systemId || (uri != null && uri.equals(systemId)))) {
             if (oneBasedColumn > -1) {
@@ -895,6 +925,11 @@ public class MessageEmitterAdapter implements ErrorHandler {
     private void messageWithRange(MessageType type, Exception message,
             String systemId, int oneBasedLine, int oneBasedColumn, int[] start)
             throws SAXException {
+        if (sourceCode == null) {
+            messageWithoutExtract(type, message, systemId, oneBasedLine,
+                    oneBasedColumn);
+            return;
+        }
         if (start != null && !sourceCode.getIsCss()) {
             oneBasedColumn = oneBasedColumn + start[2];
         }
@@ -935,6 +970,11 @@ public class MessageEmitterAdapter implements ErrorHandler {
     private void messageWithExact(MessageType type, Exception message,
             String systemId, int oneBasedLine, int oneBasedColumn, int[] start)
             throws SAXException {
+        if (sourceCode == null) {
+            messageWithoutExtract(type, message, systemId, oneBasedLine,
+                    oneBasedColumn);
+            return;
+        }
         if (start != null && !sourceCode.getIsCss()) {
             oneBasedColumn = oneBasedColumn + start[2];
         }
@@ -959,6 +999,10 @@ public class MessageEmitterAdapter implements ErrorHandler {
 
     private void messageWithLine(MessageType type, Exception message,
             String systemId, int oneBasedLine) throws SAXException {
+        if (sourceCode == null) {
+            messageWithoutExtract(type, message, systemId, oneBasedLine, -1);
+            return;
+        }
         systemId = batchMode ? systemId : null;
         if (!sourceCode.isWithinKnownSource(oneBasedLine)) {
             throw new RuntimeException("Bug. Line out of range!");
@@ -978,7 +1022,7 @@ public class MessageEmitterAdapter implements ErrorHandler {
     private void messageWithoutExtract(MessageType type, Exception message,
             String systemId, int oneBasedLine, int oneBasedColumn)
             throws SAXException {
-        if (systemId == null) {
+        if (systemId == null && sourceCode != null) {
             systemId = sourceCode.getUri();
         }
         startMessage(type, scrub(shortenDataUri(systemId)), oneBasedLine,
@@ -1171,11 +1215,26 @@ public class MessageEmitterAdapter implements ErrorHandler {
                 }
             } else if (e instanceof StringNotAllowedException) {
                 StringNotAllowedException ex = (StringNotAllowedException) e;
-                messageTextString(messageTextHandler, BAD_CHARACTER_CONTENT,
-                        false);
-                codeString(messageTextHandler, ex.getValue());
-                messageTextString(messageTextHandler, FOR, false);
-                element(messageTextHandler, ex.getCurrentElement(), false);
+                boolean isTypoInfo = false;
+                Map<String, DatatypeException> datatypeErrors = ex.getExceptions();
+                for (Map.Entry<String, DatatypeException> entry :
+                        datatypeErrors.entrySet()) {
+                    DatatypeException dex = entry.getValue();
+                    if (dex instanceof Html5DatatypeException) {
+                        Html5DatatypeException ex5 = (Html5DatatypeException) dex;
+                        if (ex5.isWarning() && ex5.getMessage() != null
+                                && ex5.getMessage().contains("Typo for")) {
+                            isTypoInfo = true;
+                        }
+                    }
+                }
+                if (!isTypoInfo) {
+                    messageTextString(messageTextHandler, BAD_CHARACTER_CONTENT,
+                            false);
+                    codeString(messageTextHandler, ex.getValue());
+                    messageTextString(messageTextHandler, FOR, false);
+                    element(messageTextHandler, ex.getCurrentElement(), false);
+                }
                 emitDatatypeErrors(messageTextHandler, ex.getExceptions());
             } else if (e instanceof TextNotAllowedException) {
                 TextNotAllowedException ex = (TextNotAllowedException) e;
@@ -1250,9 +1309,26 @@ public class MessageEmitterAdapter implements ErrorHandler {
         if (datatypeErrors.isEmpty()) {
             messageTextString(messageTextHandler, PERIOD, false);
         } else {
-            messageTextString(messageTextHandler, COLON, false);
-            for (Map.Entry<String, DatatypeException> entry : datatypeErrors.entrySet()) {
-                messageTextString(messageTextHandler, SPACE, false);
+            boolean isTypoInfo = false;
+            for (Map.Entry<String, DatatypeException> entry :
+                    datatypeErrors.entrySet()) {
+                DatatypeException ex = entry.getValue();
+                if (ex instanceof Html5DatatypeException) {
+                    Html5DatatypeException ex5 = (Html5DatatypeException) ex;
+                    if (ex5.isWarning() && ex5.getMessage() != null
+                            && ex5.getMessage().contains("Typo for")) {
+                        isTypoInfo = true;
+                    }
+                }
+            }
+            if (!isTypoInfo) {
+                messageTextString(messageTextHandler, COLON, false);
+            }
+            for (Map.Entry<String, DatatypeException> entry :
+                    datatypeErrors.entrySet()) {
+                if (!isTypoInfo) {
+                    messageTextString(messageTextHandler, SPACE, false);
+                }
                 DatatypeException ex = entry.getValue();
                 if (ex instanceof Html5DatatypeException) {
                     Html5DatatypeException ex5 = (Html5DatatypeException) ex;

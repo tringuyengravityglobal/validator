@@ -25,17 +25,12 @@ package nu.validator.xml;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
 import jakarta.servlet.http.HttpServletRequest;
 
 import nu.validator.vendor.relaxng.datatype.DatatypeException;
@@ -44,18 +39,15 @@ import nu.validator.datatype.ContentSecurityPolicy;
 import nu.validator.datatype.Html5DatatypeException;
 import nu.validator.io.BoundedInputStream;
 import nu.validator.io.ObservableInputStream;
-import nu.validator.io.StreamBoundException;
 import nu.validator.io.StreamObserver;
 import nu.validator.io.SystemIdIOException;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpClientTransport;
 import org.eclipse.jetty.client.http.HttpClientTransportOverHTTP;
-import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.util.InputStreamResponseListener;
 import org.eclipse.jetty.http.HttpField;
-import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.apache.log4j.Logger;
@@ -80,11 +72,11 @@ public class PrudentHttpEntityResolver
     private static final Logger log4j = Logger.getLogger(PrudentHttpEntityResolver.class);
 
     private static HttpClient client;
-    
+
     private static boolean clientStarted = false;
-    
+
     private static int connectionTimeoutMs;
-    
+
     private static int socketTimeoutMs;
 
     private static int maxRequests;
@@ -126,6 +118,8 @@ public class PrudentHttpEntityResolver
 
     private String userAgent;
 
+    private Map<String, String> additionalRequestHeaders = new HashMap<>();
+
     private HttpServletRequest request;
 
     /**
@@ -145,42 +139,65 @@ public class PrudentHttpEntityResolver
         PrudentHttpEntityResolver.connectionTimeoutMs = connectionTimeout;
         PrudentHttpEntityResolver.socketTimeoutMs = socketTimeout;
         PrudentHttpEntityResolver.maxRequests = maxRequests;
-        
         // Don't create any Jetty objects here - defer until first HTTP request
         client = null;
         clientStarted = false;
     }
-    
+
     private static synchronized void ensureClientStarted() {
         if (!clientStarted) {
             if (client == null) {
-                // Create the client on first use to avoid Jetty logging during initialization
+                // Create the client on first use, to avoid Jetty logging during
+                // initialization
                 boolean promiscuousSSL = "true".equals(System.getProperty(
                         "nu.validator.xml.promiscuous-ssl", "true"));
-                
                 SslContextFactory.Client sslContextFactory;
                 if (promiscuousSSL) {
                     sslContextFactory = new SslContextFactory.Client(true);
                 } else {
                     sslContextFactory = new SslContextFactory.Client();
                 }
-                
                 ClientConnector clientConnector = new ClientConnector();
                 clientConnector.setSslContextFactory(sslContextFactory);
-                
-                HttpClientTransport transport = new HttpClientTransportOverHTTP(clientConnector);
-                
+                HttpClientTransport transport = new
+                    HttpClientTransportOverHTTP(clientConnector);
                 client = new HttpClient(transport);
+                // Set daemon thread pool, so JVM can exit when the main thread
+                // completes. Create a thread factory that makes daemon threads.
+                java.util.concurrent.ThreadFactory daemonThreadFactory = new
+                    java.util.concurrent.ThreadFactory() {
+                    private final java.util.concurrent.atomic.AtomicInteger
+                        counter = new java.util.concurrent.atomic.AtomicInteger();
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread thread = new Thread(r, "vnu-http-" +
+                                counter.incrementAndGet());
+                        thread.setDaemon(true);
+                        return thread;
+                    }
+                };
+                org.eclipse.jetty.util.thread.QueuedThreadPool threadPool =
+                    new org.eclipse.jetty.util.thread
+                    .QueuedThreadPool(200, 8, 60000, -1,
+                            new java.util.concurrent.LinkedBlockingQueue<Runnable>(),
+                        null, daemonThreadFactory);
+                threadPool.setName("vnu-http-client");
+                client.setExecutor(threadPool);
+                org.eclipse.jetty.util.thread.ScheduledExecutorScheduler
+                    scheduler = new org.eclipse.jetty.util.thread
+                    .ScheduledExecutorScheduler("vnu-http-scheduler", true);
+                client.setScheduler(scheduler);
                 client.setFollowRedirects(true);
                 client.setMaxConnectionsPerDestination(maxRequests);
                 client.setMaxRequestsQueuedPerDestination(
-                        Integer.parseInt(System.getProperty("nu.validator.servlet.max-total-connections","200")));
-                client.setMaxRedirects(
-                        Integer.parseInt(System.getProperty("nu.validator.servlet.max-redirects","20")));
+                        Integer.parseInt(System.getProperty(
+                                "nu.validator.servlet.max-total-connections",
+                                "200")));
+                client.setMaxRedirects(Integer.parseInt(System.getProperty(
+                        "nu.validator.servlet.max-redirects", "20")));
                 client.setConnectTimeout(connectionTimeoutMs);
                 client.setIdleTimeout(socketTimeoutMs);
             }
-            
             try {
                 client.start();
                 clientStarted = true;
@@ -193,6 +210,18 @@ public class PrudentHttpEntityResolver
 
     public void setUserAgent(String ua) {
         userAgent = ua;
+    }
+
+    public void setAdditionalRequestHeaders(Map<String, String> headers) {
+        if (headers != null) {
+            additionalRequestHeaders = new HashMap<>(headers);
+        }
+    }
+
+    public void addRequestHeader(String name, String value) {
+        if (name != null && value != null) {
+            additionalRequestHeaders.put(name, value);
+        }
     }
 
     public PrudentHttpEntityResolver(long sizeLimit, boolean laxContentType,
@@ -220,14 +249,11 @@ public class PrudentHttpEntityResolver
     @Override
     public InputSource resolveEntity(String publicId, String systemId)
             throws SAXException, IOException {
-
         String allowedAddressType = System.getProperty(
             "nu.validator.servlet.allowed-address-type", "all");
-
         if ("none".equals(allowedAddressType)) {
             throw new IOException("URL-based checks are prohibited.");
         }
-
         if (requestsLeft > -1) {
             if (requestsLeft == 0) {
                 throw new IOException(
@@ -242,17 +268,20 @@ public class PrudentHttpEntityResolver
             try {
                 url = URL.parse(systemId);
                 if ("same-origin".equals(allowedAddressType)) {
-                    URL currentURL = URL.parse(request.getRequestURL().toString());
-
-                    String currentURLOrigin = currentURL.scheme() + currentURL.host() + currentURL.port();
-                    String targetURLOrigin = url.scheme() + url.host() + url.port();
-
+                    URL currentURL = URL.parse(
+                            request.getRequestURL().toString());
+                    String currentURLOrigin = currentURL.scheme()
+                            + currentURL.host() + currentURL.port();
+                    String targetURLOrigin = url.scheme() + url.host()
+                            + url.port();
                     if (!currentURLOrigin.equals(targetURLOrigin)) {
-                        throw new IOException("Cross-origin requests are prohibited.");
+                        throw new IOException(
+                                "Cross-origin requests are prohibited.");
                     }
                 }
             } catch (GalimatiasParseException e) {
-                IOException ioe = (IOException) new IOException(e.getMessage()).initCause(e);
+                IOException ioe = (IOException) new IOException(
+                        e.getMessage()).initCause(e);
                 SAXParseException spe = new SAXParseException(e.getMessage(),
                         publicId, systemId, -1, -1, ioe);
                 if (errorHandler != null) {
@@ -272,19 +301,13 @@ public class PrudentHttpEntityResolver
                 throw spe;
             }
             systemId = url.toString();
-            
             // Ensure the HTTP client is initialized before creating requests
             ensureClientStarted();
-            
             try {
                 jettyRequest = client.newRequest(systemId);
             } catch (IllegalArgumentException e) {
-                SAXParseException spe = new SAXParseException(
-                        e.getMessage(),
-                        publicId,
-                        systemId,
-                        -1,
-                        -1,
+                SAXParseException spe = new SAXParseException(e.getMessage(),
+                        publicId, systemId, -1, -1,
                         (IOException) new IOException(e.getMessage()).initCause(e));
                 if (errorHandler != null) {
                     errorHandler.fatalError(spe);
@@ -299,14 +322,20 @@ public class PrudentHttpEntityResolver
                     && url.port() < 1024) {
                 throw new IOException("Forbidden port.");
             }
-            jettyRequest.header("User-Agent", userAgent);
-            jettyRequest.header("Accept", buildAccept());
-            jettyRequest.header("Accept-Encoding", "gzip");
-            if (request != null && request.getAttribute(
-                    "http://validator.nu/properties/accept-language") != null) {
-                jettyRequest.header("Accept-Language", (String) request.getAttribute(
-                        "http://validator.nu/properties/accept-language"));
-            }
+            jettyRequest.headers(headers -> {
+                headers.put("User-Agent", userAgent);
+                headers.put("Accept", buildAccept());
+                headers.put("Accept-Encoding", "gzip");
+                if (request != null && request.getAttribute(
+                        "http://validator.nu/properties/accept-language") != null) {
+                    headers.put("Accept-Language", (String) request.getAttribute(
+                            "http://validator.nu/properties/accept-language"));
+                }
+                for (Map.Entry<String, String> entry :
+                        additionalRequestHeaders.entrySet()) {
+                    headers.put(entry.getKey(), entry.getValue());
+                }
+            });
             log4j.info(systemId);
             try {
                 if (url.port() > 65535) {
@@ -362,12 +391,10 @@ public class PrudentHttpEntityResolver
             }
             is = contentTypeParser.buildTypedInputSource(baseUri, publicId,
                     contentType);
-
             HttpField cl = response.getHeaders().getField("Content-Language");
             if (cl != null) {
                 is.setLanguage(cl.getValue().trim());
             }
-
             HttpField xuac = response.getHeaders().getField("X-UA-Compatible");
             if (xuac != null) {
                 String val = xuac.getValue().trim();
@@ -379,7 +406,6 @@ public class PrudentHttpEntityResolver
                     errorHandler.error(spe);
                 }
             }
-
             HttpField csp = response.getHeaders().getField("Content-Security-Policy");
             if (csp != null) {
                 try {
@@ -397,7 +423,6 @@ public class PrudentHttpEntityResolver
                     }
                 }
             }
-
             if (sizeLimit > -1) {
                 stream = new BoundedInputStream(stream, sizeLimit, baseUri);
             }
@@ -416,12 +441,10 @@ public class PrudentHttpEntityResolver
             is.setByteStream(new ObservableInputStream(stream,
                     new StreamObserver() {
                         private final Logger log4j = Logger.getLogger("nu.validator.xml.PrudentEntityResolver.StreamObserver");
-
                         @Override
                         public void closeCalled() {
                             log4j.debug("closeCalled");
                         }
-
                         @Override
                         public void exceptionOccurred(Exception ex)
                                 throws IOException {
@@ -439,15 +462,14 @@ public class PrudentHttpEntityResolver
                                         ex);
                             }
                         }
-
                         @Override
                         public void finalizerCalled() {
                             log4j.debug("finalizerCalled");
                         }
-
                     }));
             return is;
-        } catch (InterruptedException | java.util.concurrent.TimeoutException | java.util.concurrent.ExecutionException e) {
+        } catch (InterruptedException | java.util.concurrent.TimeoutException
+                | java.util.concurrent.ExecutionException e) {
             throw new IOException("HTTP request failed: " + e.getMessage(), e);
         } catch (IOException | RuntimeException | SAXException e) {
             throw e;

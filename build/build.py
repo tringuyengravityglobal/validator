@@ -942,6 +942,10 @@ class Release():
             cmd = f"{gpgCmd} --yes -ab {os.path.join(whichDir, filename)}"
             runCmdFromString(cmd)
 
+    def checkMavenCentralVersion(self):
+        latest = getMavenCentralLatestVersion()
+        return latest == validatorVersion
+
     def createMavenArtifacts(self):
         ensureDirExists(distDir)
         runAnt(shlex.split(f"-Dversion={self.version} -f {self.buildXml}"),
@@ -1108,27 +1112,9 @@ class Release():
                     sigsums.match(filename)):
                 removeIfExists(filename)
 
-    def uploadMavenToMavenCentral(self):
-        url = "https://repo1.maven.org/maven2/nu/validator/validator/maven-metadata.xml"  # nopep8
-        try:
-            with urlopen(url) as response:
-                maven_metadata = response.read()
-        except HTTPError as e:
-            print(e.reason)
-            sys.exit(1)
-        except URLError as e:
-            print(e.reason)
-            sys.exit(1)
-        root = ET.fromstring(maven_metadata)
-        latest = root.findtext("./versioning/latest")
-        if not latest:
-            latest = root.findtext("./versioning/release")
-        if latest:
-            if latest == validatorVersion:
-                return
-        else:
-            print("Couldn’t get latest version number from Maven Central.")
-            sys.exit(1)
+    def uploadToMavenCentral(self):
+        if self.checkMavenCentralVersion():
+            return
         self.createMavenBundle()
         cmd = f"""{curlCmd} --request POST \
              --form "bundle=@{distDir}/validator-{self.version}-bundle.jar" \
@@ -1159,6 +1145,12 @@ class Release():
         if not os.path.exists(vnuJar):
             print(f"Error: {vnuJar} not found.")
             sys.exit(1)
+        # Verify the jar file is valid (not a placeholder or error page)
+        jar_size = os.path.getsize(vnuJar)
+        if jar_size < 1000000:
+            print(f"Error: {vnuJar} is too small ({jar_size} bytes), likely corrupted!")
+            sys.exit(1)
+        print(f"vnu.jar size: {jar_size} bytes")
         self.updatePackageJsonAndReadme()
         if tag:
             runCmdFromString(
@@ -1304,6 +1296,9 @@ class Release():
         if not os.path.exists(vnuCmd):
             self.createRuntimeImage()
         execCmd(vnuCmd, svgTestArgs, True)
+        cssTestArgs = ["--skip-non-css"]
+        cssTestArgs.append(os.path.join(buildRoot, "tests", "css"))
+        execCmd(vnuCmd, cssTestArgs, True)
 
     def runSpecTests(self):
         if platform.system() == 'Windows':
@@ -1374,6 +1369,40 @@ def createDepTarball():
         os.path.join(buildRoot, "deps.tar.gz"),
     ] + dependencyJarPaths()
     runCmd(args)
+
+
+def getMavenCentralLatestVersion():
+    """Fetch and return the latest version from Maven Central."""
+    url = "https://repo1.maven.org/maven2/nu/validator/validator/maven-metadata.xml"  # nopep8
+    try:
+        with urlopen(url) as response:
+            maven_metadata = response.read()
+    except HTTPError as e:
+        print(f"HTTP Error fetching Maven metadata: {e.reason}")
+        sys.exit(1)
+    except URLError as e:
+        print(f"URL Error fetching Maven metadata: {e.reason}")
+        sys.exit(1)
+    root = ET.fromstring(maven_metadata)
+    latest = root.findtext("./versioning/latest")
+    if not latest:
+        latest = root.findtext("./versioning/release")
+    if not latest:
+        print("Could not find latest version on Maven Central")
+        sys.exit(1)
+    return latest
+
+
+def checkMavenVersionExists():
+    latest = getMavenCentralLatestVersion()
+    print(f"Latest version on Maven Central: {latest}")
+    print(f"Current version: {validatorVersion}")
+    if latest == validatorVersion:
+        print(f"Version {validatorVersion} already exists on Maven Central")
+        sys.exit(0)
+    else:
+        print(f"Version {validatorVersion} does not exist on Maven Central")
+        sys.exit(1)
 
 
 def deployOverScp():
@@ -1748,9 +1777,9 @@ def getTaskChoices():
         'update-subtrees', 'dldeps', 'checkout', 'build', 'docker-build',
         'docker-run', 'docker-push', 'bundle', 'npm-install', 'npm-release',
         'maven-artifacts', 'maven-sign', 'maven-bundle', 'maven-release',
-        'image', 'jar', 'war', 'sign', 'localent', 'deploy', 'tar',
-        'script', 'test', 'test-specs', 'make-messages', 'check',
-        'self-test', 'clean', 'realclean', 'run', 'all', 'completion',
+        'maven-version-exists', 'image', 'jar', 'war', 'sign', 'localent',
+        'deploy', 'tar', 'script', 'test', 'test-specs', 'make-messages',
+        'check', 'self-test', 'clean', 'realclean', 'run', 'all', 'completion',
     ]
 
 
@@ -2113,7 +2142,9 @@ def main(argv, script_name=None):
         elif task == 'maven-bundle':
             release.createMavenBundle()
         elif task == 'maven-release':
-            release.uploadMavenToMavenCentral()
+            release.uploadToMavenCentral()
+        elif task == 'maven-version-exists':
+            checkMavenVersionExists()
         elif task == 'image':
             release.createRuntimeImage()
         elif task == 'jar':

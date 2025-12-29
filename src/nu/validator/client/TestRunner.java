@@ -72,6 +72,8 @@ public class TestRunner extends MessageEmitterAdapter {
 
     private Exception exception = null;
 
+    private String infoMessage = null;
+
     private SimpleDocumentValidator validator;
 
     private PrintWriter err;
@@ -89,6 +91,8 @@ public class TestRunner extends MessageEmitterAdapter {
     private boolean verbose;
 
     private boolean hasUnhandledWarning = false;
+
+    private boolean hasUnhandledInfo = false;
 
     private File baseDir = null;
 
@@ -437,6 +441,82 @@ public class TestRunner extends MessageEmitterAdapter {
         }
     }
 
+    private void checkHasInfoFiles(List<File> files) throws IOException {
+        String testFilename;
+        expectingError = false;
+        for (File file : files) {
+            if (isIgnorable(file)) {
+                continue;
+            }
+            reset();
+            hasUnhandledInfo = false;
+            infoMessage = null;
+            emitMessages = true;
+            try {
+                if (file.isDirectory()) {
+                    recurseDirectory(file);
+                } else {
+                    checkHtmlFile(file);
+                }
+            } catch (IOException | SAXException e) {
+                failed = true;
+                try {
+                    err.println(String.format(
+                            "\"%s\": error: Exception while checking file: %s",
+                            this.getFileURL(file),
+                            e.getMessage()));
+                    err.flush();
+                } catch (MalformedURLException e1) {
+                    throw new RuntimeException(e1);
+                }
+            }
+            if (infoMessage != null) {
+                testFilename = this.getRelativePathname(file, baseDir);
+                if (writeMessages) {
+                    reportedMessages.add(testFilename, infoMessage);
+                } else if (expectedMessages != null
+                        && expectedMessages.get(testFilename) == null) {
+                    try {
+                        err.println(String.format(
+                                "\"%s\": info: No expected message in"
+                                        + " messages file.",
+                                this.getFileURL(file)));
+                        err.flush();
+                    } catch (MalformedURLException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else if (expectedMessages != null
+                        && !infoMessage.equals(((javax.json.JsonString) expectedMessages.get(testFilename)).getString())) {
+                    try {
+                        err.println(String.format(
+                                "\"%s\": error: Expected \"%s\""
+                                        + " but instead encountered \"%s\".",
+                                this.getFileURL(file),
+                                expectedMessages.get(testFilename),
+                                infoMessage));
+                        err.flush();
+                    } catch (MalformedURLException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    // Message matched expectations - clear the unhandled flag
+                    hasUnhandledInfo = false;
+                }
+            } else if (!hasUnhandledInfo) {
+                try {
+                    err.println(String.format(
+                            "\"%s\": error: Expected an info message but did not"
+                                    + " encounter any.",
+                            this.getFileURL(file)));
+                    err.flush();
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+                failed = true;
+            }
+        }
+    }
+
     private enum State {
         EXPECTING_INVALID_FILES, EXPECTING_VALID_FILES, EXPECTING_ANYTHING
     }
@@ -453,6 +533,7 @@ public class TestRunner extends MessageEmitterAdapter {
         List<File> validFiles = new ArrayList<>();
         List<File> invalidFiles = new ArrayList<>();
         List<File> hasWarningFiles = new ArrayList<>();
+        List<File> hasInfoFiles = new ArrayList<>();
         if (files == null) {
             if (verbose) {
                 try {
@@ -486,6 +567,8 @@ public class TestRunner extends MessageEmitterAdapter {
                     invalidFiles.add(file);
                 } else if (file.getPath().indexOf("haswarn") >= 0) {
                     hasWarningFiles.add(file);
+                } else if (file.getPath().indexOf("hasinfo") >= 0) {
+                    hasInfoFiles.add(file);
                 } else {
                     validFiles.add(file);
                 }
@@ -502,6 +585,10 @@ public class TestRunner extends MessageEmitterAdapter {
         if (hasWarningFiles.size() > 0) {
             validator.setUpValidatorAndParsers(this, false, false);
             checkHasWarningFiles(hasWarningFiles);
+        }
+        if (hasInfoFiles.size() > 0) {
+            validator.setUpValidatorAndParsers(this, false, false);
+            checkHasInfoFiles(hasInfoFiles);
         }
     }
 
@@ -591,6 +678,17 @@ public class TestRunner extends MessageEmitterAdapter {
         if (DEFAULT_FILTER_PATTERN.matcher(e.getMessage()).matches()) {
             return;
         }
+        if (e.getMessage() != null && e.getMessage().contains("Typo for")) {
+            if (emitMessages) {
+                if (infoMessage == null) {
+                    infoMessage = e.getMessage();
+                }
+                // Don't call emitMessage; let checkHasInfoFiles handle
+                // printing on mismatch.
+            }
+            // Don't set hasUnhandledInfo; typo info messages are expected.
+            return;
+        }
         if (emitMessages) {
             emitMessage(e, "error");
         } else if (exception == null) {
@@ -598,7 +696,8 @@ public class TestRunner extends MessageEmitterAdapter {
             if (e instanceof BadAttributeValueException) {
                 BadAttributeValueException ex = (BadAttributeValueException) e;
                 Map<String, DatatypeException> datatypeErrors = ex.getExceptions();
-                for (Map.Entry<String, DatatypeException> entry : datatypeErrors.entrySet()) {
+                for (Map.Entry<String, DatatypeException> entry :
+                        datatypeErrors.entrySet()) {
                     DatatypeException dex = entry.getValue();
                     if (dex instanceof Html5DatatypeException) {
                         Html5DatatypeException ex5 = (Html5DatatypeException) dex;
@@ -621,6 +720,15 @@ public class TestRunner extends MessageEmitterAdapter {
             return;
         } else if (exception == null) {
             exception = e;
+        }
+    }
+
+    @Override
+    public void info(String message) throws SAXException {
+        if (emitMessages) {
+            hasUnhandledInfo = true;
+            err.println("info: " + message);
+            err.flush();
         }
     }
 
@@ -690,6 +798,9 @@ public class TestRunner extends MessageEmitterAdapter {
         }
         if (tr.runTestSuite()) {
             if (tr.hasUnhandledWarning) {
+                System.exit(1);
+            }
+            if (!tr.isWriteMessages() && tr.hasUnhandledInfo) {
                 System.exit(1);
             }
             System.exit(0);

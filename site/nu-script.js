@@ -30,8 +30,7 @@
  * in this file.
  *
  */
-var NuScript = {};
-NuScript.idCount = 0;
+var idCount = 0
 var urlInput = null
 var multiUrlInput = null
 var multiUrlModeInput = null
@@ -97,7 +96,7 @@ function initFieldHolders() {
 		copySourceIntoTextArea()
 		if (textarea.value == '') {
 			textarea.value = htmlBoilerplate
-			if (supportsLocalStorage() && localStorage.inputWasCss == "yes") {
+			if (supportsLocalStorage() && localStorage["inputWasCss"] == "yes") {
 				textarea.value = ""
 			}
 		}
@@ -156,7 +155,7 @@ function initFieldHolders() {
 			location.hash = '#multiurl'
 		} else {
 			installUrlInput()
-			history.pushState(null, document.title, location.pathname);
+			history.pushState("", document.title, location.pathname);
 		}
 		if (supportsLocalStorage()) {
 			localStorage["lastInputMode"] = this.value
@@ -450,7 +449,7 @@ function moveLangAndDirWarningsAndAddLinks() {
 				langOrDirLinks.innerHTML = langGuidance
 			} else if (warningText.indexOf("Content-Language") != -1) {
 				langOrDirLinks.innerHTML = contentLangGuidance
-			} else if (warningText.indexOf("dir=") != -1) {
+			} else if (warningText.indexOf("dir=") != 1) {
 				langOrDirLinks.innerHTML = dirGuidance
 			}
 			langOrDirWarning.appendChild(langOrDirLinks)
@@ -471,8 +470,7 @@ function moveLangAndDirWarningsAndAddLinks() {
 
 function reflow(element) {
 	if (element.offsetHeight) {
-		// Intentionally read offsetHeight to force a layout/reflow in the browser.
-		element.offsetHeight;
+		var reflow = element.offsetHeight
 	}
 }
 
@@ -756,6 +754,7 @@ function initFilters() {
 		links,
 		messageCollection,
 		className,
+		links,
 		mainForm
 
 	if (!document.getElementsByClassName || !document.querySelectorAll) {
@@ -856,7 +855,7 @@ function initFilters() {
 			// Find the unique messages and categorize them
 			for (var i = 0; i < messages.length; ++i) {
 				message = messages[i]
-				var messageClone = messages[i].cloneNode(true)
+				messageClone = messages[i].cloneNode(true)
 					uniqueMessage = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].textContent
 					messageGroupEl = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].cloneNode(true)
 					messageGroupElCode = messageGroupEl.getElementsByTagName("code")

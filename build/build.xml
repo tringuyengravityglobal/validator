@@ -37,7 +37,7 @@ DEALINGS IN THE SOFTWARE.
       </tokenfilter>
     </filterchain>
   </loadresource>
-  <property name="build.java.target.version" value="8" />
+  <property name="build.java.target.version" value="11" />
   <property name="groupId" value="nu.validator" />
   <property name="artifactId" value="validator" />
   <property name="src" location="src" />
@@ -144,17 +144,18 @@ DEALINGS IN THE SOFTWARE.
   <property name="commons-fileupload-version" value="2.0.0-M2" />
   <property name="commons-io-version" value="2.15.1" />
   <property name="commons-logging-version" value="1.2" />
+  <property name="commons-text-version" value="1.12.0" />
   <property name="icu4j-version" value="75.1" />
   <property name="jakarta.servlet-api-version" value="5.0.2" />
   <property name="javax.json-version" value="1.1.4" />
   <property name="jchardet-version" value="1.0" />
   <property name="log4j-version" value="1.2.17" />
   <property name="mail-version" value="1.4.7" />
-  <property name="salvation-version" value="2.7.2" />
+  <property name="salvation-version" value="3.0.1" />
   <target name="dl-deps" unless="${offline}">
     <echo>Downloading dependencies</echo>
     <get-and-checksum url="https://repo1.maven.org/maven2/com/ibm/icu/icu4j/${icu4j-version}/icu4j-${icu4j-version}.jar"/>
-    <get-and-checksum url="https://repo1.maven.org/maven2/com/shapesecurity/salvation/${salvation-version}/salvation-${salvation-version}.jar"/>
+    <get-and-checksum url="https://repo1.maven.org/maven2/com/shapesecurity/salvation2/${salvation-version}/salvation2-${salvation-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/commons-codec/commons-codec/${commons-codec-version}/commons-codec-${commons-codec-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/org/apache/commons/commons-fileupload2-core/${commons-fileupload-version}/commons-fileupload2-core-${commons-fileupload-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/org/apache/commons/commons-fileupload2-jakarta-servlet5/${commons-fileupload-version}/commons-fileupload2-jakarta-servlet5-${commons-fileupload-version}.jar"/>
@@ -162,6 +163,7 @@ DEALINGS IN THE SOFTWARE.
     <get-and-checksum url="https://repo1.maven.org/maven2/commons-logging/commons-logging/${commons-logging-version}/commons-logging-${commons-logging-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/commons-logging/commons-logging/${commons-logging-version}/commons-logging-${commons-logging-version}-adapters.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/commons-logging/commons-logging/${commons-logging-version}/commons-logging-${commons-logging-version}-api.jar"/>
+    <get-and-checksum url="https://repo1.maven.org/maven2/org/apache/commons/commons-text/${commons-text-version}/commons-text-${commons-text-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/javax/mail/mail/${mail-version}/mail-${mail-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/org/eclipse/jetty/toolchain/jetty-jakarta-servlet-api/${jakarta.servlet-api-version}/jetty-jakarta-servlet-api-${jakarta.servlet-api-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/log4j/log4j/${log4j-version}/log4j-${log4j-version}.jar"/>
@@ -246,6 +248,7 @@ DEALINGS IN THE SOFTWARE.
       <zipfileset src="${depsDir}/commons-logging-${commons-logging-version}.jar" unless:true="${jar-without-deps}"/>
       <zipfileset src="${depsDir}/commons-logging-${commons-logging-version}-adapters.jar" unless:true="${jar-without-deps}"/>
       <zipfileset src="${depsDir}/commons-logging-${commons-logging-version}-api.jar" unless:true="${jar-without-deps}"/>
+      <zipfileset src="${depsDir}/commons-text-${commons-text-version}.jar" unless:true="${jar-without-deps}"/>
       <zipfileset src="${depsDir}/icu4j-${icu4j-version}.jar" unless:true="${jar-without-deps}"/>
 
       <zipfileset src="${depsDir}/jchardet-${jchardet-version}.jar" unless:true="${jar-without-deps}"/>
@@ -281,7 +284,7 @@ DEALINGS IN THE SOFTWARE.
         <exclude name="module-info.class" />
       </zipfileset>
       <zipfileset src="${depsDir}/log4j-${log4j-version}.jar" unless:true="${jar-without-deps}"/>
-      <zipfileset src="${depsDir}/salvation-${salvation-version}.jar" unless:true="${jar-without-deps}"/>
+      <zipfileset src="${depsDir}/salvation2-${salvation-version}.jar" unless:true="${jar-without-deps}"/>
       <!-- module dependencies -->
       <!-- isorelax.jar classes are now included in jing-shaded.jar to avoid Maven conflicts -->
       <zipfileset src="${depsDir}/avalon-framework-api-${avalon-framework-api-version}.jar" unless:true="${jar-without-deps}"/>
@@ -328,8 +331,9 @@ DEALINGS IN THE SOFTWARE.
       <lib file="${depsDir}/commons-logging-${commons-logging-version}.jar"/>
       <lib file="${depsDir}/commons-logging-${commons-logging-version}-adapters.jar"/>
       <lib file="${depsDir}/commons-logging-${commons-logging-version}-api.jar"/>
+      <lib file="${depsDir}/commons-text-${commons-text-version}.jar"/>
       <lib file="${depsDir}/icu4j-${icu4j-version}.jar"/>
-      <lib file="${depsDir}/salvation-${salvation-version}.jar"/>
+      <lib file="${depsDir}/salvation2-${salvation-version}.jar"/>
       <lib file="${depsDir}/jchardet-${jchardet-version}.jar"/>
       <lib file="${depsDir}/log4j-${log4j-version}.jar"/>
       <lib file="${depsDir}/slf4j-api-${slf4j-api-version}.jar"/>
@@ -351,6 +355,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="commons-fileupload2-core-${commons-fileupload-version}.jar" />
     <fileset dir="${depsDir}/" includes="commons-fileupload2-jakarta-servlet5-${commons-fileupload-version}.jar" />
     <fileset dir="${depsDir}/" includes="commons-io-${commons-io-version}.jar" />
+    <fileset dir="${depsDir}/" includes="commons-text-${commons-text-version}.jar" />
     <fileset dir="${depsDir}/" includes="icu4j-${icu4j-version}.jar" />
     <fileset dir="${depsDir}/" includes="javax.json-${javax.json-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-client-${jetty-version}.jar" />
@@ -361,7 +366,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="jetty-http-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-io-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="log4j-${log4j-version}.jar" />
-    <fileset dir="${depsDir}/" includes="salvation-${salvation-version}.jar" />
+    <fileset dir="${depsDir}/" includes="salvation2-${salvation-version}.jar" />
     <pathelement location="css-validator/css-validator.jar"/>
     <pathelement location="${jarsDir}/galimatias.jar"/>
     <pathelement location="${jarsDir}/htmlparser.jar"/>
@@ -463,6 +468,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="commons-fileupload2-core-${commons-fileupload-version}.jar" />
     <fileset dir="${depsDir}/" includes="commons-fileupload2-jakarta-servlet5-${commons-fileupload-version}.jar" />
     <fileset dir="${depsDir}/" includes="commons-io-${commons-io-version}.jar" />
+    <fileset dir="${depsDir}/" includes="commons-text-${commons-text-version}.jar" />
     <fileset dir="${depsDir}/" includes="icu4j-${icu4j-version}.jar" />
     <fileset dir="${depsDir}/" includes="javax.json-${javax.json-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-client-${jetty-version}.jar" />
@@ -471,7 +477,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="jetty-util-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-jakarta-servlet-api-${jakarta.servlet-api-version}.jar" />
     <fileset dir="${depsDir}/" includes="log4j-${log4j-version}.jar" />
-    <fileset dir="${depsDir}/" includes="salvation-${salvation-version}.jar" />
+    <fileset dir="${depsDir}/" includes="salvation2-${salvation-version}.jar" />
     <pathelement location="css-validator/css-validator.jar"/>
     <pathelement location="${jarsDir}/galimatias.jar"/>
     <pathelement location="${jarsDir}/htmlparser.jar"/>
@@ -750,7 +756,7 @@ DEALINGS IN THE SOFTWARE.
         email="sideshowbarker@gmail.com"
         url="https://github.com/sideshowbarker"/>
       <dependency groupId="com.ibm.icu" artifactId="icu4j" version="${icu4j-version}"/>
-      <dependency groupId="com.shapesecurity" artifactId="salvation" version="${salvation-version}"/>
+      <dependency groupId="com.shapesecurity" artifactId="salvation2" version="${salvation-version}"/>
       <dependency groupId="commons-codec" artifactId="commons-codec" version="${commons-codec-version}"/>
       <dependency groupId="org.apache.commons" artifactId="commons-fileupload2-core" version="${commons-fileupload-version}"/>
       <dependency groupId="org.apache.commons" artifactId="commons-fileupload2-jakarta-servlet5" version="${commons-fileupload-version}"/>
