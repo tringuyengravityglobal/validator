@@ -818,9 +818,6 @@ function initFilters() {
 	filtersButton.appendChild(document.createTextNode("Message Filtering"))
 	heading.appendChild(filtersButton)
 	filters.appendChild(heading)
-	filtersButton.addEventListener('click', function (e) {
-	 	toggleFilters()
-	}, false)
 
 	// Generate errors/warnings/info fieldsets
 	makeFieldset = function(messages, displayType) {
@@ -1045,8 +1042,14 @@ function initFilters() {
 	} else {
 		mainForm.parentNode.insertBefore(filters, mainForm.nextSibling)
 	}
-	document.querySelector("*[autofocus]").removeAttribute("autofocus")
-	document.querySelector("*[tabindex]").removeAttribute("tabindex")
+	var autofocusEl = document.querySelector("*[autofocus]")
+	if (autofocusEl) {
+		autofocusEl.removeAttribute("autofocus")
+	}
+	var tabindexEl = document.querySelector("*[tabindex]")
+	if (tabindexEl) {
+		tabindexEl.removeAttribute("tabindex")
+	}
 	fieldsets = filters.getElementsByTagName("fieldset")
 
 	toggleFilters = function() {
@@ -1063,6 +1066,11 @@ function initFilters() {
 			fieldset.className === "hidden" ? fieldset.className = "unhidden" : fieldset.className = "hidden"
 		}
 	}
+
+	// Add event listener for the filters button
+	filtersButton.addEventListener('click', function (e) {
+	 	toggleFilters()
+	}, false)
 
 	// Show/hide the messages when the checkboxes are toggled
 	checkboxes = document.getElementById("filters").getElementsByTagName("input")
