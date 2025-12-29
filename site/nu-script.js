@@ -786,6 +786,12 @@ function initFilters() {
 		replaceSuccessFailure()
 		return
 	}
+	
+	// Remove existing filters section if it exists (for multi-URL mode re-initialization)
+	var existingFilters = document.getElementById('filters')
+	if (existingFilters && existingFilters.parentNode) {
+		existingFilters.parentNode.removeChild(existingFilters)
+	}
 
 	// Check if we're in multi-URL mode
 	var isMultiUrl = document.getElementById('multi-url-results') !== null
@@ -1028,18 +1034,10 @@ function initFilters() {
 	showCount()
 
 	mainForm = document.getElementsByTagName("form")[0]
-	
-	// In multi-URL mode, insert filters after the results div's first heading
-	// In single-URL mode, insert after the form
-	if (isMultiUrl) {
-		var resultsDiv = document.getElementById('results')
-		var firstHeading = resultsDiv.querySelector('h2')
-		if (firstHeading && firstHeading.nextSibling) {
-			resultsDiv.insertBefore(filters, firstHeading.nextSibling)
-		} else {
-			resultsDiv.appendChild(filters)
-		}
-	} else {
+
+	// Both single-URL and multi-URL modes: insert filters after the form
+	// This keeps the Message Filtering button outside the results area
+	if (mainForm && mainForm.parentNode) {
 		mainForm.parentNode.insertBefore(filters, mainForm.nextSibling)
 	}
 	var autofocusEl = document.querySelector("*[autofocus]")
