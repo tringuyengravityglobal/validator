@@ -954,6 +954,23 @@ class Release():
     def signMavenArtifacts(self):
         self.sign(os.path.join(mavenArtifactsDir))
 
+    def testMavenArtifact(self):
+        print("Testing Maven artifact...")
+        testScriptPath = os.path.join(buildRoot, "tests", "maven-integration",
+                                      "test-maven-integration.sh")
+        if not os.path.exists(testScriptPath):
+            print(f"Error: Test script not found: {testScriptPath}")
+            sys.exit(1)
+
+        # Change to test directory and run the test script
+        testDir = os.path.join(buildRoot, "tests", "maven-integration")
+        originalDir = os.getcwd()
+        try:
+            os.chdir(testDir)
+            runCmd(["./test-maven-integration.sh", "local"])
+        finally:
+            os.chdir(originalDir)
+
     def createMavenBundle(self):
         print(f"Building {distDir}/validator-{self.version}-bundle.jar")
         runAnt(shlex.split(f"-Dversion={self.version} -f {self.buildXml}"),
@@ -1148,7 +1165,7 @@ class Release():
         # Verify the jar file is valid (not a placeholder or error page)
         jar_size = os.path.getsize(vnuJar)
         if jar_size < 1000000:
-            print(f"Error: {vnuJar} is too small ({jar_size} bytes), likely corrupted!")
+            print(f"Error: {vnuJar} is too small ({jar_size} bytes), likely corrupted!")  # nopep8
             sys.exit(1)
         print(f"vnu.jar size: {jar_size} bytes")
         self.updatePackageJsonAndReadme()
@@ -1775,11 +1792,12 @@ def isServiceUp(defaultReply):
 def getTaskChoices():
     return [
         'update-subtrees', 'dldeps', 'checkout', 'build', 'docker-build',
-        'docker-run', 'docker-push', 'bundle', 'npm-install', 'npm-release',
-        'maven-artifacts', 'maven-sign', 'maven-bundle', 'maven-release',
-        'maven-version-exists', 'image', 'jar', 'war', 'sign', 'localent',
-        'deploy', 'tar', 'script', 'test', 'test-specs', 'make-messages',
-        'check', 'self-test', 'clean', 'realclean', 'run', 'all', 'completion',
+        'docker-run', 'docker-push', 'bundle', 'npm-install',
+        'npm-release', 'maven-artifacts', 'maven-sign', 'maven-test',
+        'maven-bundle', 'maven-release', 'maven-version-exists', 'image',
+        'jar', 'war', 'sign', 'localent', 'deploy', 'tar', 'script',
+        'test', 'test-specs', 'make-messages', 'check', 'self-test',
+        'clean', 'realclean', 'run', 'all', 'completion',
     ]
 
 
@@ -2139,6 +2157,8 @@ def main(argv, script_name=None):
             release.createMavenArtifacts()
         elif task == 'maven-sign':
             release.signMavenArtifacts()
+        elif task == 'maven-test':
+            release.testMavenArtifact()
         elif task == 'maven-bundle':
             release.createMavenBundle()
         elif task == 'maven-release':
