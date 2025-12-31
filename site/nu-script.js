@@ -205,8 +205,10 @@ function initFieldHolders() {
 				location.hash = '#textarea'
 				modeSelect.value = 'textarea'
 			} else {
-				installUrlInput()
-				modeSelect.value = ''
+				// Default to multi-URL mode for new users
+				installMultiUrlInput()
+				location.hash = '#multiurl'
+				modeSelect.value = 'multiurl'
 			}
 		}
 	}
