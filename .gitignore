@@ -18,6 +18,7 @@ build/validator*.jar
 build/validator/
 build/VERSION
 build/.gradle
+classes/
 dependencies/
 deps.tar.gz
 dist/
@@ -28,3 +29,10 @@ local-entities/
 node_modules/
 run-validator.sh
 .commit_message_update
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

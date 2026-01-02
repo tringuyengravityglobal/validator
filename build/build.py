@@ -1276,9 +1276,37 @@ class Release():
         args = getRunArgs(str(int(heapSize) * 1024))
         execCmd(javaCmd, args)
 
+    def runUnitTests(self):
+        if not os.path.exists(vnuJar):
+            self.createJarOrWar("jar")
+        # List of unit test classes to run
+        testClasses = [
+            'nu.validator.messages.test.MessageEmitterAdapterTest',
+            'nu.validator.collections.test.SortedSetTest',
+            'nu.validator.io.test.DataUriTest',
+            'nu.validator.checker.test.SpeculationRulesCheckerTest',
+            'nu.validator.checker.test.CspEnforcementCheckerTest',
+            'nu.validator.checker.test.AttributeUtilTest',
+            'nu.validator.datatype.test.DatatypeTest',
+            'nu.validator.checker.test.LocatorImplTest',
+            'nu.validator.checker.test.NormalizationCheckerTest',
+            'nu.validator.xml.test.CharacterUtilTest',
+        ]
+        for testClass in testClasses:
+            print(f"\nRunning {testClass}...")
+            args = [javaCmd]
+            if stackSize != "":
+                args.append('-Xss' + stackSize + 'k')
+            args.append('-classpath')
+            args.append(vnuJar)
+            args.append(testClass)
+            runCmd(args)
+
     def runTests(self):
         if not os.path.exists(vnuJar):
             self.createJarOrWar("jar")
+
+        self.runUnitTests()
 
         args = [javaCmd]
         if stackSize != "":
@@ -1316,6 +1344,31 @@ class Release():
         cssTestArgs = ["--skip-non-css"]
         cssTestArgs.append(os.path.join(buildRoot, "tests", "css"))
         execCmd(vnuCmd, cssTestArgs, True)
+        docbookTestArgs = ["--schema",
+                           "https://docbook.org/xml/5.1/rng/docbook.rng",
+                           "--xml"]
+        # Test valid DocBook document; expect no output/messages/errors
+        testdoc = [os.path.join("tests", "schema-validation",
+                                "docbook-valid.xml")]
+        execCmd(vnuCmd, docbookTestArgs + testdoc, True)
+        # Test invalid DocBook document; expect output (an error message)
+        testdoc = [os.path.join("tests", "schema-validation",
+                                "docbook-invalid.xml")]
+        cmd = [vnuCmd] + docbookTestArgs + testdoc
+        print(shlex.join(cmd))
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("Expected validation errors in output, but found none.")
+            sys.exit(2)
+        # Check for expected error patterns in output (stdout or stderr)
+        output = result.stdout + result.stderr
+        if "error:" not in output.lower():
+            print("Expected validation errors in output, but found none.")
+            sys.exit(2)
+
+        # Run e2e tests if Playwright is available
+        if isPlaywrightAvailable():
+            self.runE2eTests()
 
     def runSpecTests(self):
         if platform.system() == 'Windows':
@@ -1357,6 +1410,25 @@ class Release():
             "https://encoding.spec.whatwg.org/shift_jis.html",
             ])
         execCmd(vnuCmd, legacyEncodingCoverageTestArgs, True)
+
+    def runE2eTests(self):
+        if not os.path.exists(vnuJar):
+            self.createJarOrWar("jar")
+        if isServiceUp(False):
+            print("Service is already/still running at " + bindAddress +
+                  ":" + portNumber)
+            print("Stop it first, then retry.")
+            sys.exit(1)
+        args = getRunArgs(str(int(heapSize) * 1024))
+        daemon = subprocess.Popen([javaCmd, ] + args)
+        waitUntilServiceIsReady()
+        try:
+            playwrightCmd = ["pnpm", "exec", "playwright", "test",
+                             "--project=chromium"]
+            runCmd(playwrightCmd)
+        finally:
+            daemon.terminate()
+            waitUntilServiceIsDown()
 
     def makeTestMessages(self):
         os.chdir("tests")
@@ -1759,6 +1831,14 @@ def waitUntilServiceIsReady():
         time.sleep(15)
 
 
+def isPlaywrightAvailable():
+    """Check if Playwright e2e tests can be run in this environment."""
+    if not shutil.which("pnpm"):
+        return False
+    playwrightDir = os.path.join(buildRoot, "node_modules", "@playwright", "test")
+    return os.path.exists(playwrightDir)
+
+
 def waitUntilServiceIsDown():
     if shutil.which("nc"):
         isReady = True
@@ -1796,8 +1876,8 @@ def getTaskChoices():
         'npm-release', 'maven-artifacts', 'maven-sign', 'maven-test',
         'maven-bundle', 'maven-release', 'maven-version-exists', 'image',
         'jar', 'war', 'sign', 'localent', 'deploy', 'tar', 'script',
-        'test', 'test-specs', 'make-messages', 'check', 'self-test',
-        'clean', 'realclean', 'run', 'all', 'completion',
+        'test', 'test-specs', 'unit-tests', 'e2e-tests', 'make-messages', 'check',
+        'self-test', 'clean', 'realclean', 'run', 'all', 'completion',
     ]
 
 
@@ -2190,9 +2270,25 @@ def main(argv, script_name=None):
                 icon = 'icon.png'
             generateRunScript()
         elif task == 'test':
+            if not stylesheet:
+                stylesheet = 'style.css'
+            if not script:
+                script = 'script.js'
+            if not icon:
+                icon = 'icon.png'
             release.runTests()
         elif task == 'test-specs':
             release.runSpecTests()
+        elif task == 'unit-tests':
+            release.runUnitTests()
+        elif task == 'e2e-tests':
+            if not stylesheet:
+                stylesheet = 'style.css'
+            if not script:
+                script = 'script.js'
+            if not icon:
+                icon = 'icon.png'
+            release.runE2eTests()
         elif task == 'make-messages':
             release.makeTestMessages()
         elif task == 'check':

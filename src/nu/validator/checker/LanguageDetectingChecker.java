@@ -97,8 +97,6 @@ public class LanguageDetectingChecker extends Checker {
 
     private int currentOpenElementsWithSkipName = 0;
 
-    private int currentOpenElementsInIgnoredNamespace = 0;
-
     private int nonWhitespaceCharacterCount;
 
     private static final int MAX_CHARS = 30720;
@@ -110,16 +108,9 @@ public class LanguageDetectingChecker extends Checker {
     private static final String[] RTL_LANGS = { "ar", "azb", "ckb", "dv", "fa",
             "he", "pnb", "ps", "sd", "ug", "ur" };
 
-    private static final String[] SKIP_NAMES = { "script", "style", "template" };
-
-    private static final String[] BLOCK_LEVEL_NAMES = { "address", "article",
-        "aside", "audio", "blockquote", "br", "button", "canvas", "caption",
-        "center", "dd", "details", "dialog", "div", "dt", "embed", "fieldset",
-        "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5",
-        "h6", "header", "hgroup", "hr", "iframe", "img", "input", "legend", "li",
-        "listing", "main", "marquee", "menuitem", "meter", "nav", "object",
-        "option", "p", "pre", "progress", "rt", "section", "select", "summary",
-        "td", "textarea", "th", "video", "xmp" };
+    private static final String[] SKIP_NAMES = { "a", "button", "details",
+        "figcaption", "form", "li", "nav", "pre", "script", "select", "span",
+        "style", "summary", "td", "textarea", "th", "tr" };
 
     static {
         if (!"0".equals(System.getProperty("nu.validator.checker.enableLangDetection"))) {
@@ -246,7 +237,6 @@ public class LanguageDetectingChecker extends Checker {
     private boolean shouldAppendToLangdetectContent() {
         return (inBody && currentOpenElementsWithSkipName < 1
                 && currentOpenElementsInDifferentLang < 1
-                && currentOpenElementsInIgnoredNamespace < 1
                 && nonWhitespaceCharacterCount < MAX_CHARS);
     }
 
@@ -277,19 +267,19 @@ public class LanguageDetectingChecker extends Checker {
         if (!htmlElementHasLang) {
             langWarning = "This document appears to be written in either"
                     + " Croatian, Serbian, or Bosnian. Consider adding either"
-                    + " \u201Clang=\"hr\"\u201D, \u201Clang=\"sr\"\u201D, or"
-                    + " \u201Clang=\"bs\"\u201D to the"
-                    + " \u201Chtml\u201D start tag.";
+                    + " “lang=\"hr\"”, “lang=\"sr\"”, or"
+                    + " “lang=\"bs\"” to the"
+                    + " “html” start tag.";
         } else if (!("hr".equals(declaredLangCode)
                 || "sr".equals(declaredLangCode)
                 || "bs".equals(declaredLangCode))) {
             langWarning = String.format(
                     "This document appears to be written in either Croatian,"
-                            + " Serbian, or Bosnian, but the \u201Chtml\u201D"
+                            + " Serbian, or Bosnian, but the “html”"
                             + " start tag has %s. Consider using either"
-                            + " \u201Clang=\"hr\"\u201D,"
-                            + " \u201Clang=\"sr\"\u201D, or"
-                            + " \u201Clang=\"bs\"\u201D instead.",
+                            + " “lang=\"hr\"”,"
+                            + " “lang=\"sr\"”, or"
+                            + " “lang=\"bs\"” instead.",
                     getAttValueExpr("lang", lowerCaseLang));
         }
         if (!"".equals(langWarning)) {
@@ -303,16 +293,16 @@ public class LanguageDetectingChecker extends Checker {
         if (!htmlElementHasLang) {
             langWarning = "This document appears to be written in Norwegian"
                     + " Consider adding either"
-                    + " \u201Clang=\"nn\"\u201D or \u201Clang=\"nb\"\u201D"
-                    + " (or variant) to the \u201Chtml\u201D start tag.";
+                    + " “lang=\"nn\"” or “lang=\"nb\"”"
+                    + " (or variant) to the “html” start tag.";
         } else if (!("no".equals(declaredLangCode)
                 || "nn".equals(declaredLangCode)
                 || "nb".equals(declaredLangCode))) {
             langWarning = String.format(
                     "This document appears to be written in Norwegian, but the"
-                            + " \u201Chtml\u201D start tag has %s. Consider"
-                            + " using either \u201Clang=\"nn\"\u201D or"
-                            + " \u201Clang=\"nb\"\u201D (or variant) instead.",
+                            + " “html” start tag has %s. Consider"
+                            + " using either “lang=\"nn\"” or"
+                            + " “lang=\"nb\"” (or variant) instead.",
                     getAttValueExpr("lang", lowerCaseLang));
         }
         if (!"".equals(langWarning)) {
@@ -334,9 +324,9 @@ public class LanguageDetectingChecker extends Checker {
                 || "nb".equals(contentLangCode))) {
             warn("This document appears to be written in"
                     + " Norwegian but the value of the HTTP"
-                    + " \u201CContent-Language\u201D header is" + " \u201C"
-                    + lowerCaseContentLang + "\u201D. Consider"
-                    + " changing it to \u201Cnn\u201D or \u201Cnn\u201D"
+                    + " “Content-Language” header is" + " “"
+                    + lowerCaseContentLang + "”. Consider"
+                    + " changing it to “nn” or “nn”"
                     + " (or variant) instead.");
         }
     }
@@ -349,8 +339,8 @@ public class LanguageDetectingChecker extends Checker {
         if (!htmlElementHasLang) {
             langWarning = String.format(
                     "This document appears to be written in %s."
-                            + " Consider adding \u201Clang=\"%s\"\u201D"
-                            + " (or variant) to the \u201Chtml\u201D"
+                            + " Consider adding “lang=\"%s\"”"
+                            + " (or variant) to the “html”"
                             + " start tag.",
                     detectedLanguageName, preferredLanguageCode);
         } else {
@@ -444,8 +434,8 @@ public class LanguageDetectingChecker extends Checker {
                 return;
             }
             String message = "This document appears to be written in %s"
-                    + " but the \u201Chtml\u201D start tag has %s. Consider"
-                    + " using \u201Clang=\"%s\"\u201D (or variant) instead.";
+                    + " but the “html” start tag has %s. Consider"
+                    + " using “lang=\"%s\"” (or variant) instead.";
             if (zhSubtagMismatch(detectedLanguage, lowerCaseLang)
                     || !declaredLangCode.equals(detectedLanguageCode)) {
                 if (request != null) {
@@ -544,17 +534,17 @@ public class LanguageDetectingChecker extends Checker {
         if (zhSubtagMismatch(detectedLanguage, lowerCaseContentLang)
                 || !contentLangCode.equals(detectedLanguageCode)) {
             message = "This document appears to be written in %s but the value"
-                    + " of the HTTP \u201CContent-Language\u201D header is"
-                    + " \u201C%s\u201D. Consider changing it to"
-                    + " \u201C%s\u201D (or variant).";
+                    + " of the HTTP “Content-Language” header is"
+                    + " “%s”. Consider changing it to"
+                    + " “%s” (or variant).";
             warn(String.format(message, detectedLanguageName,
                     lowerCaseContentLang, preferredLanguageCode,
                     preferredLanguageCode));
         }
         if (htmlElementHasLang) {
-            message = "The value of the HTTP \u201CContent-Language\u201D"
-                    + " header is \u201C%s\u201D but it will be ignored because"
-                    + " the \u201Chtml\u201D start tag has %s.";
+            message = "The value of the HTTP “Content-Language”"
+                    + " header is “%s” but it will be ignored because"
+                    + " the “html” start tag has %s.";
             String lowerCaseLang = htmlElementLangAttrValue.toLowerCase();
             if (htmlElementHasLang) {
                 if (zhSubtagMismatch(lowerCaseContentLang, lowerCaseLang)
@@ -577,13 +567,13 @@ public class LanguageDetectingChecker extends Checker {
         if (!hasDir) {
             dirWarning = String.format(
                     "This document appears to be written in %s."
-                            + " Consider adding \u201Cdir=\"rtl\"\u201D"
-                            + " to the \u201Chtml\u201D start tag.",
+                            + " Consider adding “dir=\"rtl\"”"
+                            + " to the “html” start tag.",
                     detectedLanguageName, preferredLanguageCode);
         } else if (!"rtl".equals(dirAttrValue)) {
             String message = "This document appears to be written in %s"
-                    + " but the \u201Chtml\u201D start tag has %s."
-                    + " Consider using \u201Cdir=\"rtl\"\u201D instead.";
+                    + " but the “html” start tag has %s."
+                    + " Consider using “dir=\"rtl\"” instead.";
             dirWarning = String.format(message, detectedLanguageName,
                     getAttValueExpr("dir", dirAttrValue));
         }
@@ -604,9 +594,9 @@ public class LanguageDetectingChecker extends Checker {
 
     private String getAttValueExpr(String attName, String attValue) {
         if ("".equals(attValue)) {
-            return String.format("an empty \u201c%s\u201d attribute", attName);
+            return String.format("an empty “%s” attribute", attName);
         } else {
-            return String.format("\u201C%s=\"%s\"\u201D", attName, attValue);
+            return String.format("“%s=\"%s\"”", attName, attValue);
         }
     }
 
@@ -640,8 +630,8 @@ public class LanguageDetectingChecker extends Checker {
     private void warnIfMissingLang() throws SAXException {
         if (hasHtmlElement && !htmlElementHasLang
                 && !"true".equals(System.getProperty("nu.validator.checker.ignoreMissingLang"))) {
-            String message = "Consider adding a \u201Clang\u201D"
-                + " attribute to the \u201Chtml\u201D"
+            String message = "Consider adding a “lang”"
+                + " attribute to the “html”"
                 + " start tag to declare the language"
                 + " of this document.";
             warn(message, htmlStartTagLocator);
@@ -763,14 +753,6 @@ public class LanguageDetectingChecker extends Checker {
     @Override
     public void endElement(String uri, String localName, String name)
             throws SAXException {
-        if ("http://www.w3.org/2000/svg" == uri
-                || "http://www.w3.org/1998/Math/MathML" == uri) {
-            currentOpenElementsInIgnoredNamespace--;
-            if (currentOpenElementsInIgnoredNamespace < 0) {
-                currentOpenElementsInIgnoredNamespace = 0;
-            }
-            return;
-        }
         if ("http://www.w3.org/1999/xhtml" != uri) {
             elementContent.setLength(0);
             return;
@@ -778,10 +760,6 @@ public class LanguageDetectingChecker extends Checker {
         if (Arrays.binarySearch(SKIP_NAMES, localName) < 0 &&
                 nonWhitespaceCharacterCount < MAX_CHARS) {
             documentContent.append(elementContent);
-            // Add space after block-level elements
-            if (Arrays.binarySearch(BLOCK_LEVEL_NAMES, localName) >= 0) {
-                documentContent.append(" ");
-            }
             elementContent.setLength(0);
         }
         if ("body".equals(localName)) {
@@ -816,7 +794,6 @@ public class LanguageDetectingChecker extends Checker {
         inBody = false;
         currentOpenElementsInDifferentLang = 0;
         currentOpenElementsWithSkipName = 0;
-        currentOpenElementsInIgnoredNamespace = 0;
         nonWhitespaceCharacterCount = 0;
         elementContent = new StringBuilder();
         documentContent = new StringBuilder();
@@ -849,18 +826,8 @@ public class LanguageDetectingChecker extends Checker {
     @Override
     public void startElement(String uri, String localName, String name,
             Attributes atts) throws SAXException {
-        // Handle SVG and MathML namespaces - ignore their content
-        if ("http://www.w3.org/2000/svg" == uri
-                || "http://www.w3.org/1998/Math/MathML" == uri) {
-            currentOpenElementsInIgnoredNamespace++;
-            return;
-        }
-        if ("http://www.w3.org/1999/xhtml" != uri) {
-            return;
-        }
-        // Track SKIP_NAMES elements before returning
-        if (Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
-            currentOpenElementsWithSkipName++;
+        if ("http://www.w3.org/1999/xhtml" != uri
+                || Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
             return;
         }
         if ("html".equals(localName) && "http://www.w3.org/1999/xhtml" == uri) {
@@ -879,8 +846,8 @@ public class LanguageDetectingChecker extends Checker {
                         declaredLangCode = new ULocale(
                                 htmlElementLangAttrValue).getLanguage();
                     } catch (IllegalArgumentException e) {
-                        String message = "The \u201Chtml\u201D start tag has a"
-                            + " malformed value for its \u201Clang\u201D"
+                        String message = "The “html” start tag has a"
+                            + " malformed value for its “lang”"
                             + " attribute.";
                         warn(message, htmlStartTagLocator);
                     }
@@ -892,23 +859,6 @@ public class LanguageDetectingChecker extends Checker {
         } else if ("body".equals(localName)) {
             inBody = true;
         } else if (inBody) {
-            // Add space before block-level elements
-            if (Arrays.binarySearch(BLOCK_LEVEL_NAMES, localName) >= 0
-                    && shouldAppendToLangdetectContent()) {
-                documentContent.append(" ");
-            }
-            // Extract alt attribute from img elements
-            if ("img".equals(localName)) {
-                for (int i = 0; i < atts.getLength(); i++) {
-                    if ("alt".equals(atts.getLocalName(i)) 
-                            && shouldAppendToLangdetectContent()) {
-                        String altText = atts.getValue(i);
-                        if (altText != null && !altText.isEmpty()) {
-                            documentContent.append(" ").append(altText).append(" ");
-                        }
-                    }
-                }
-            }
             if (currentOpenElementsInDifferentLang > 0) {
                 currentOpenElementsInDifferentLang++;
             } else {
@@ -922,6 +872,9 @@ public class LanguageDetectingChecker extends Checker {
                     }
                 }
             }
+        }
+        if (Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
+            currentOpenElementsWithSkipName++;
         }
     }
 

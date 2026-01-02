@@ -70,6 +70,12 @@ jobs:
         run: |
           version="$(date +"%y.%m.%d") ($(git rev-parse --short ${{ github.sha }}))"
           python checker.py --version="$version" image
+      - name: Set up Playwright for e2e tests
+        if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' && matrix.os == 'ubuntu-latest' }}
+        run: |
+          npm install -g pnpm
+          pnpm install
+          pnpm exec playwright install --with-deps chromium
       - name: Test
         if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
         shell: bash
@@ -432,10 +438,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
+      - name: Clean
+        run: python checker.py clean
       - name: Build vnu.jar
         run: python checker.py --version="$version" build
       - name: Rebuild tests/messages.json
-        run: make VNUJAR=../build/dist/vnu.jar  -C tests/ messages.json
+        run: python checker.py make-messages
       - name: Check if there are changes to messages.json
-        run: cd tests && git diff --exit-code messages.json
+        run: git diff --exit-code tests/messages.json
 # yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json

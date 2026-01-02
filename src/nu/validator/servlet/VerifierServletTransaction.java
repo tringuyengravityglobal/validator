@@ -257,14 +257,15 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
     private static final String[] ALL_CHECKERS = {
             "http://c.validator.nu/table/", "http://c.validator.nu/duplicate-dt/",
-            "http://c.validator.nu/nfc/",
+            "http://c.validator.nu/heading-hierarchy/", "http://c.validator.nu/nfc/",
             "http://c.validator.nu/speculation-rules/",
             "http://c.validator.nu/text-content/",
             "http://c.validator.nu/unchecked/",
             "http://c.validator.nu/usemap/",
             "http://c.validator.nu/xml-pi/",
             "http://c.validator.nu/microdata/",
-            "http://c.validator.nu/langdetect/" };
+            "http://c.validator.nu/langdetect/",
+            "http://c.validator.nu/csp-enforcement/" };
 
     private long start = System.currentTimeMillis();
 
@@ -390,6 +391,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
     private boolean showSourceExplicitly;
 
     private boolean showOutline;
+
+    private boolean skipInfoMessages;
 
     private boolean checkErrorPages;
 
@@ -523,6 +526,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                     CheckerSchema.TABLE_CHECKER);
             schemaMap.put("http://c.validator.nu/duplicate-dt/",
                     CheckerSchema.DUPLICATE_DT_CHECKER);
+            schemaMap.put("http://c.validator.nu/heading-hierarchy/",
+                    CheckerSchema.HEADING_HIERARCHY_CHECKER);
             schemaMap.put("http://c.validator.nu/nfc/",
                     CheckerSchema.NORMALIZATION_CHECKER);
             schemaMap.put("http://hsivonen.iki.fi/checkers/nfc/",
@@ -553,6 +558,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                     CheckerSchema.RDFALITE_CHECKER);
             schemaMap.put("http://c.validator.nu/langdetect/",
                     CheckerSchema.LANGUAGE_DETECTING_CHECKER);
+            schemaMap.put("http://c.validator.nu/csp-enforcement/",
+                    CheckerSchema.CSP_ENFORCEMENT_CHECKER);
 
             for (String presetUrl : presetUrls) {
                 for (String url : SPACE.split(presetUrl)) {
@@ -966,7 +973,7 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
         boolean errorsOnly = ("error".equals(request.getParameter("level")));
 
-        boolean skipInfoMessages = ("warning".equals(request.getParameter("level")));
+        skipInfoMessages = ("warning".equals(request.getParameter("level")));
 
         boolean asciiQuotes = false;
 
@@ -1221,13 +1228,13 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                 String charset = documentInput.getEncoding();
                 if (charset == null) {
                     errorHandler.warning(new SAXParseException(
-                            "Overriding document character encoding from none to \u201C"
-                                    + charsetOverride + "\u201D.", null));
+                            "Overriding document character encoding from none to “"
+                                    + charsetOverride + "”.", null));
                 } else {
                     errorHandler.warning(new SAXParseException(
-                            "Overriding document character encoding from \u201C"
-                                    + charset + "\u201D to \u201C"
-                                    + charsetOverride + "\u201D.", null));
+                            "Overriding document character encoding from “"
+                                    + charset + "” to “"
+                                    + charsetOverride + "”.", null));
                 }
                 documentInput.setEncoding(charsetOverride);
             }
@@ -1694,7 +1701,7 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                     break;
                 } else if ("text/html".equals(type) || "text/html-sandboxed".equals(type)) {
                     if (isHtmlUnsafePreset()) {
-                        String message = "The Content-Type was \u201C" + type + "\u201D, but the chosen preset schema is not appropriate for HTML.";
+                        String message = "The Content-Type was “" + type + "”, but the chosen preset schema is not appropriate for HTML.";
                         SAXException se = new SAXException(message);
                         errorHandler.schemaError(se);
                         throw se;
@@ -1711,9 +1718,9 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                             "text/xml".equals(contentType) ||
                             (Arrays.binarySearch(KNOWN_CONTENT_TYPES,
                                 contentType)) > -1) {
-                            errorHandler.info("The Content-Type was \u201C"
+                            errorHandler.info("The Content-Type was “"
                                     + type
-                                    + "\u201D. Using the XML parser (not resolving external entities).");
+                                    + "”. Using the XML parser (not resolving external entities).");
                         }
                     }
                     setupXmlParser();
@@ -2167,6 +2174,10 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
         emitter.checkbox("showimagereport", "yes", imageCollector != null);
     }
 
+    void emitWarningsOnlyField() throws SAXException {
+        emitter.checkbox("level", "warning", skipInfoMessages);
+    }
+
     void emitCheckErrorPagesField() throws SAXException {
         emitter.checkbox("checkerrorpages", "yes", checkErrorPages);
     }
@@ -2185,8 +2196,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                 message = "XML document with no namespace; cannot determine"
                         + " any schema to use for validation.";
                 if (namespace != "") {
-                    message = "Cannot find preset schema for namespace: \u201C"
-                            + namespace + "\u201D.";
+                    message = "Cannot find preset schema for namespace: “"
+                            + namespace + "”.";
                 }
                 SAXException se = new SAXException(message);
                 errorHandler.schemaError(se);
@@ -2215,13 +2226,13 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                 int i;
                 if ((i = Arrays.binarySearch(KNOWN_CONTENT_TYPES, contentType)) > -1) {
                     if (!NAMESPACES_FOR_KNOWN_CONTENT_TYPES[i].equals(namespace)) {
-                        String message = "".equals(namespace) ? "\u201C"
+                        String message = "".equals(namespace) ? "“"
                                 + contentType
-                                + "\u201D is not an appropriate Content-Type for a document whose root element is not in a namespace."
-                                : "\u201C"
+                                + "” is not an appropriate Content-Type for a document whose root element is not in a namespace."
+                                : "“"
                                         + contentType
-                                        + "\u201D is not an appropriate Content-Type for a document whose root namespace is \u201C"
-                                        + namespace + "\u201D.";
+                                        + "” is not an appropriate Content-Type for a document whose root namespace is “"
+                                        + namespace + "”.";
                         SAXParseException spe = new SAXParseException(message,
                                 locator);
                         errorHandler.warning(spe);
@@ -2240,10 +2251,10 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                 aboutLegacyCompat = true;
                 errorHandler.warning(new SAXParseException(
                         "Documents should not use"
-                                + " \u201cabout:legacy-compat\u201d,"
+                                + " “about:legacy-compat”,"
                                 + " except if generated by legacy systems"
                                 + " that can't output the standard"
-                                + " \u201c<!DOCTYPE html>\u201d  doctype.",
+                                + " “<!DOCTYPE html>”  doctype.",
                         null));
             }
             if (systemIdentifier.contains("http://www.w3.org/TR/xhtml1")) {

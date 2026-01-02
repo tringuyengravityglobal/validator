@@ -39,7 +39,9 @@ import java.util.Map;
 import nu.validator.checker.jing.CheckerSchema;
 import nu.validator.checker.jing.CheckerValidator;
 import nu.validator.checker.table.TableChecker;
+import nu.validator.checker.CspEnforcementChecker;
 import nu.validator.checker.DuplicateDtChecker;
+import nu.validator.checker.HeadingHierarchyChecker;
 import nu.validator.checker.MicrodataChecker;
 import nu.validator.checker.NormalizationChecker;
 import nu.validator.checker.SpeculationRulesChecker;
@@ -65,6 +67,7 @@ import nu.validator.xml.NullEntityResolver;
 import nu.validator.xml.PrudentHttpEntityResolver;
 import nu.validator.xml.PrudentHttpEntityResolver.ResourceNotRetrievableException;
 import nu.validator.xml.TypedInputSource;
+import nu.validator.xml.AttributesPermutingXMLReaderWrapper;
 import nu.validator.xml.WiretapXMLReaderWrapper;
 
 import org.xml.sax.ContentHandler;
@@ -150,8 +153,36 @@ public class SimpleDocumentValidator {
         PropertyMap jingPropertyMap = pmb.toPropertyMap();
 
         try {
-            TypedInputSource schemaInput = (TypedInputSource) entityResolver.resolveEntity(
-                    null, schemaUrl);
+            InputSource resolvedInput = entityResolver.resolveEntity(null, schemaUrl);
+            TypedInputSource schemaInput;
+
+            if (resolvedInput instanceof TypedInputSource) {
+                schemaInput = (TypedInputSource) resolvedInput;
+            } else {
+                if (schemaUrl.startsWith("http://") || schemaUrl.startsWith("https://")) {
+                    PrudentHttpEntityResolver httpResolver = 
+                        new PrudentHttpEntityResolver(-1, true, errorHandler);
+                    httpResolver.setAllowRnc(true);
+                    httpResolver.setAllowGenericXml(true);
+                    schemaInput = (TypedInputSource) httpResolver.resolveEntity(null, schemaUrl);
+                } else if (schemaUrl.startsWith("file:")) {
+                    schemaInput = new TypedInputSource();
+                    java.net.URL url = new java.net.URL(schemaUrl);
+                    schemaInput.setByteStream(url.openStream());
+                    schemaInput.setSystemId(schemaUrl);
+                    if (schemaUrl.endsWith(".rnc")) {
+                        schemaInput.setType("application/relax-ng-compact-syntax");
+                    } else if (schemaUrl.endsWith(".rng")) {
+                        schemaInput.setType("application/xml");
+                    } else {
+                        schemaInput.setType("application/xml");
+                    }
+                } else {
+                    throw new SchemaReadException(String.format(
+                            "Failed to resolve schema URL \"%s\".", schemaUrl));
+                }
+            }
+
             SchemaReader sr;
             if ("application/relax-ng-compact-syntax".equals(schemaInput.getType())) {
                 sr = CompactSchemaReader.getInstance();
@@ -162,6 +193,9 @@ public class SimpleDocumentValidator {
         } catch (ClassCastException e) {
             throw new SchemaReadException(String.format(
                     "Failed to resolve schema URL \"%s\".", schemaUrl));
+        } catch (ResourceNotRetrievableException e) {
+            throw new SchemaReadException(String.format(
+                    "Failed to retrieve schema from URL \"%s\".", schemaUrl));
         }
     }
 
@@ -326,6 +360,8 @@ public class SimpleDocumentValidator {
             validator = new CombineValidator(validator, new CheckerValidator(
                     new DuplicateDtChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
+                    new HeadingHierarchyChecker(), jingPropertyMap));
+            validator = new CombineValidator(validator, new CheckerValidator(
                     new MicrodataChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
                     new NormalizationChecker(), jingPropertyMap));
@@ -339,6 +375,8 @@ public class SimpleDocumentValidator {
                     new UsemapChecker(), jingPropertyMap));
             validator = new CombineValidator(validator, new CheckerValidator(
                     new XmlPiChecker(), jingPropertyMap));
+            validator = new CombineValidator(validator, new CheckerValidator(
+                    new CspEnforcementChecker(), jingPropertyMap));
         }
 
         HtmlParser htmlParser = new HtmlParser();
@@ -363,7 +401,9 @@ public class SimpleDocumentValidator {
         HashMap<String, String> profileMap = new HashMap<>();
         profileMap.put("html-strict", "warn");
         htmlParser.setErrorProfile(profileMap);
-        htmlReader = getWiretap(htmlParser);
+        XMLReader permutingHtmlReader = new AttributesPermutingXMLReaderWrapper(
+                htmlParser); // improves RNG validation error messages
+        htmlReader = getWiretap(permutingHtmlReader);
         xmlParser = new SAXDriver();
         xmlParser.setContentHandler(validator.getContentHandler());
         xmlParser.setErrorHandler(docValidationErrHandler);

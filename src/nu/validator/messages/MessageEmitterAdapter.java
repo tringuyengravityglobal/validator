@@ -841,6 +841,182 @@ public class MessageEmitterAdapter implements InfoAwareErrorHandler {
         return nonDocumentErrors > 0;
     }
 
+    /**
+     * Checks if an exception represents a role=directory error, which should
+     * be treated as a warning (deprecated but not invalid).
+     */
+    protected static boolean isRoleDirectoryWarning(Exception e) {
+        if (e instanceof BadAttributeValueException) {
+            BadAttributeValueException ex = (BadAttributeValueException) e;
+            return "directory".equals(ex.getAttributeValue())
+                    && "role".equals(ex.getAttributeName().getLocalName());
+        }
+        return false;
+    }
+
+    private String getDisplayMessage(Exception message) {
+        if (message instanceof AbstractValidationException) {
+            return getDisplayMessageForRng(
+                    (AbstractValidationException) message);
+        } else if (message instanceof VnuBadAttrValueException) {
+            VnuBadAttrValueException e = (VnuBadAttrValueException) message;
+            return "Bad value “" + e.getAttributeValue()
+                    + "” for attribute “"
+                    + e.getAttributeName().getLocalName()
+                    + "” on element “"
+                    + e.getCurrentElement().getLocalName() + "”.";
+        } else if (message instanceof VnuBadElementNameException) {
+            VnuBadElementNameException e = (VnuBadElementNameException) message;
+            return "Element “" + e.getElementName()
+                    + "” not allowed.";
+        }
+        return null;
+    }
+
+    private String getDisplayMessageForRng(AbstractValidationException e) {
+        StringBuilder sb = new StringBuilder();
+        if (e instanceof BadAttributeValueException) {
+            BadAttributeValueException ex = (BadAttributeValueException) e;
+            sb.append("Bad value “").append(ex.getAttributeValue()).append(
+                    "” for attribute “").append(
+                            ex.getAttributeName().getLocalName()).append(
+                                    "” on element “").append(
+                                            ex.getCurrentElement()
+                                            .getLocalName()).append("”.");
+        } else if (e instanceof ImpossibleAttributeIgnoredException) {
+            ImpossibleAttributeIgnoredException ex =
+                (ImpossibleAttributeIgnoredException) e;
+            sb.append("Attribute “").append(
+                    ex.getAttributeName().getLocalName()).append(
+                    "” not allowed on element “").append(
+                            ex.getCurrentElement().getLocalName()).append(
+                                    "” at this point.");
+        } else if (e instanceof OnlyTextNotAllowedException) {
+            OnlyTextNotAllowedException ex = (OnlyTextNotAllowedException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” is not allowed to have content that"
+                            + " consists solely of text.");
+        } else if (e instanceof OutOfContextElementException) {
+            OutOfContextElementException ex = (OutOfContextElementException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” not allowed");
+            if (ex.getParent() != null) {
+                sb.append(" as child of “").append(
+                        ex.getParent().getLocalName()).append("”");
+            }
+            sb.append(" in this context.");
+        } else if (e instanceof RequiredAttributesMissingOneOfException) {
+            RequiredAttributesMissingOneOfException ex =
+                (RequiredAttributesMissingOneOfException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” is missing one or more of the following"
+                            + " attributes: ");
+            for (Iterator<String> iter =
+                    ex.getAttributeLocalNames().iterator(); iter.hasNext();) {
+                sb.append("“").append(iter.next()).append("”");
+                if (iter.hasNext()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append(".");
+        } else if (e instanceof RequiredAttributesMissingException) {
+            RequiredAttributesMissingException ex =
+                (RequiredAttributesMissingException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” is missing required attribute “")
+                    .append(ex.getAttributeLocalName()).append("”.");
+        } else if (e instanceof RequiredElementsMissingException) {
+            RequiredElementsMissingException ex =
+                (RequiredElementsMissingException) e;
+            if (ex.getParent() == null) {
+                sb.append("Required elements missing.");
+            } else {
+                sb.append("Element “").append(
+                        ex.getParent().getLocalName()).append("”");
+                if (ex.getMissingElementName() == null) {
+                    sb.append(" is missing a required child element");
+                } else {
+                    sb.append(
+                            " is missing a required instance of child element"
+                            + " “").append(ex.getMissingElementName())
+                        .append("”");
+                }
+                sb.append(".");
+            }
+        } else if (e instanceof TextNotAllowedException) {
+            TextNotAllowedException ex = (TextNotAllowedException) e;
+            sb.append("Text not allowed in “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” in this context.");
+        } else if (e instanceof UnfinishedElementException) {
+            UnfinishedElementException ex = (UnfinishedElementException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append("”");
+            if (ex.getMissingElementName() == null) {
+                sb.append(" is missing a required child element");
+            } else {
+                sb.append(
+                        " is missing a required instance of child element"
+                        + " “").append(
+                                ex.getMissingElementName()).append("”");
+            }
+            sb.append(".");
+        } else if (e instanceof UnfinishedElementOneOfException) {
+            UnfinishedElementOneOfException ex =
+                (UnfinishedElementOneOfException) e;
+            sb.append("Element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” is missing a required instance of one"
+                            + " or more of the following child elements: ");
+            for (Iterator<String> iter =
+                    ex.getMissingElementNames().iterator(); iter.hasNext();) {
+                sb.append("“").append(iter.next()).append("”");
+                if (iter.hasNext()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append(".");
+        } else if (e instanceof RequiredElementsMissingOneOfException) {
+            RequiredElementsMissingOneOfException ex =
+                (RequiredElementsMissingOneOfException) e;
+            sb.append("Element “").append(
+                    ex.getParent().getLocalName()).append(
+                            "” is missing a required instance of one or"
+                            + " more of the following child elements: ");
+            for (Iterator<String> iter =
+                    ex.getMissingElementNames().iterator(); iter.hasNext();) {
+                sb.append("“").append(iter.next()).append("”");
+                if (iter.hasNext()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append(".");
+        } else if (e instanceof UnknownElementException) {
+            UnknownElementException ex = (UnknownElementException) e;
+            sb.append("Unknown element “").append(
+                    ex.getCurrentElement().getLocalName()).append(
+                            "” not allowed");
+            if (ex.getParent() != null) {
+                sb.append(" as child of “").append(
+                        ex.getParent().getLocalName()).append("”");
+            }
+            sb.append(".");
+        } else if (e instanceof StringNotAllowedException) {
+            StringNotAllowedException ex = (StringNotAllowedException) e;
+            sb.append("Bad character content “").append(
+                    ex.getValue()).append("” for element “").append(
+                            ex.getCurrentElement().getLocalName()).append(
+                                    "”.");
+        } else {
+            return null;
+        }
+        return sb.toString();
+    }
+
     private void messageFromSAXParseException(MessageType type,
             SAXParseException spe, boolean exact, int[] start)
             throws SAXException {
@@ -854,7 +1030,23 @@ public class MessageEmitterAdapter implements InfoAwareErrorHandler {
             throws SAXException {
         if (skipInfoMessages && type == MessageType.INFO)
             return;
-        String msg = message.getMessage();
+        // Convert role=directory errors to warnings before filtering
+        if (type == MessageType.ERROR && isRoleDirectoryWarning(message)) {
+            if (this.errors > 0) {
+                this.errors--;
+            }
+            this.warnings++;
+            message(MessageType.WARNING, message, systemId, oneBasedLine,
+                    oneBasedColumn, exact, start);
+            return;
+        }
+        // Use display message for filtering (what users see in output).
+        // Fall back to internal message for exception types not handled by
+        // getDisplayMessage().
+        String msg = getDisplayMessage(message);
+        if (msg == null) {
+            msg = message.getMessage();
+        }
         if (msg != null && ((filterPattern != null
                 && filterPattern.matcher(msg).matches())
                 || DEFAULT_FILTER_PATTERN.matcher(msg).matches())) {
@@ -876,18 +1068,6 @@ public class MessageEmitterAdapter implements InfoAwareErrorHandler {
                 request.setAttribute(
                         "http://validator.nu/properties/self-closing-tag-found",
                         true);
-            }
-        }
-        if (msg != null && msg.contains(
-                "Bad value \u201Cdirectory\u201D for attribute “role”")) {
-            if (type == MessageType.ERROR) {
-                if (this.errors > 0) {
-                    this.errors--;
-                }
-                this.warnings++;
-                message(MessageType.WARNING, message, systemId, oneBasedLine,
-                        oneBasedColumn, exact, start);
-                return;
             }
         }
         if (loggingOk
@@ -1462,7 +1642,7 @@ public class MessageEmitterAdapter implements InfoAwareErrorHandler {
         int startQuotes = 0;
         for (int i = 0; i < len; i++) {
             char c = message.charAt(i);
-            if (c == '\u201C') {
+            if (c == '“') {
                 startQuotes++;
                 if (startQuotes == 1) {
                     char[] scrubbed = scrub(message.substring(start, i)).toCharArray();
@@ -1470,7 +1650,7 @@ public class MessageEmitterAdapter implements InfoAwareErrorHandler {
                     start = i + 1;
                     messageTextHandler.startCode();
                 }
-            } else if (c == '\u201D' && startQuotes > 0) {
+            } else if (c == '”' && startQuotes > 0) {
                 startQuotes--;
                 if (startQuotes == 0) {
                     char[] scrubbed = scrub(message.substring(start, i)).toCharArray();

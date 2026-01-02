@@ -37,6 +37,8 @@ import nu.validator.vendor.relaxng.datatype.DatatypeException;
 
 import nu.validator.datatype.ContentSecurityPolicy;
 import nu.validator.datatype.Html5DatatypeException;
+
+import com.shapesecurity.salvation2.Policy;
 import nu.validator.io.BoundedInputStream;
 import nu.validator.io.ObservableInputStream;
 import nu.validator.io.StreamObserver;
@@ -291,8 +293,8 @@ public class PrudentHttpEntityResolver
             }
             String scheme = url.scheme();
             if (!("http".equals(scheme) || "https".equals(scheme))) {
-                String msg = "Unsupported URI scheme: \u201C" + scheme
-                        + "\u201D.";
+                String msg = "Unsupported URI scheme: “" + scheme
+                        + "”.";
                 SAXParseException spe = new SAXParseException(msg, publicId,
                         systemId, -1, -1, new IOException(msg));
                 if (errorHandler != null) {
@@ -400,16 +402,17 @@ public class PrudentHttpEntityResolver
                 String val = xuac.getValue().trim();
                 if (!"ie=edge".equalsIgnoreCase(val)) {
                     SAXParseException spe = new SAXParseException(
-                            "X-UA-Compatible HTTP header must have the value \u201CIE=edge\u201D,"
-                                    + " was \u201C" + val + "\u201D.",
+                            "X-UA-Compatible HTTP header must have the value “IE=edge”,"
+                                    + " was “" + val + "”.",
                             publicId, systemId, -1, -1);
                     errorHandler.error(spe);
                 }
             }
             HttpField csp = response.getHeaders().getField("Content-Security-Policy");
             if (csp != null) {
+                String cspValue = csp.getValue().trim();
                 try {
-                    ContentSecurityPolicy.THE_INSTANCE.checkValid(csp.getValue().trim());
+                    ContentSecurityPolicy.THE_INSTANCE.checkValid(cspValue);
                 } catch (DatatypeException e) {
                     SAXParseException spe = new SAXParseException(
                             "Content-Security-Policy HTTP header: "
@@ -420,6 +423,21 @@ public class PrudentHttpEntityResolver
                         errorHandler.warning(spe);
                     } else {
                         errorHandler.error(spe);
+                    }
+                }
+                // Store parsed CSP policy for enforcement checking
+                if (request != null) {
+                    try {
+                        Policy policy = Policy.parseSerializedCSP(cspValue,
+                                (severity, message, directiveIndex,
+                                        valueIndex) -> {
+                                    // Ignore parsing errors here - already reported above
+                                });
+                        request.setAttribute(
+                                "http://validator.nu/properties/csp-policy",
+                                policy);
+                    } catch (IllegalArgumentException e) {
+                        // Ignore - policy parsing failed, already reported above
                     }
                 }
             }
