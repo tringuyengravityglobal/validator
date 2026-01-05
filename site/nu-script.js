@@ -257,7 +257,7 @@ function initCookieInput() {
 	var cookieLabel = createHtmlElement('label')
 	cookieLabel.setAttribute('for', 'enable-cookie')
 	cookieLabel.appendChild(cookieCheckbox)
-	cookieLabel.appendChild(document.createTextNode(' Enable Custom Cookies (for authenticated sites)'))
+	cookieLabel.appendChild(document.createTextNode(' Enable Custom Cookies (for authentication sites)'))
 
 	// Create container
 	var cookieContainer = createHtmlElement('div')
