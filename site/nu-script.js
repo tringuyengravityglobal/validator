@@ -56,6 +56,7 @@ function reboot() {
 	initFieldHolders()
 	initUserAgents()
 	initWarningsOnly()
+	initShowDuplicates()
 	installDynamicStyle()
 	updateFragmentIdHilite()
 	window.setInterval(emulateHashChanged, 50)
@@ -321,6 +322,25 @@ function initWarningsOnly() {
 				localStorage["warningsOnly"] = "yes"
 			} else {
 				localStorage["warningsOnly"] = "no"
+			}
+		}
+	}, false)
+}
+
+function initShowDuplicates() {
+	var showDuplicatesCheckbox = document.getElementById("showduplicates")
+	if (!showDuplicatesCheckbox) {
+		return
+	}
+	if (supportsLocalStorage() && localStorage["showDuplicates"] == "yes") {
+		showDuplicatesCheckbox.checked = true
+	}
+	showDuplicatesCheckbox.addEventListener("change", function(e) {
+		if (supportsLocalStorage()) {
+			if (e.target.checked) {
+				localStorage["showDuplicates"] = "yes"
+			} else {
+				localStorage["showDuplicates"] = "no"
 			}
 		}
 	}, false)
@@ -1407,6 +1427,12 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		formData.append('showsource', 'yes')
 	}
 	
+	// Check if showduplicates checkbox is checked
+	var showDuplicatesCheckbox = document.getElementById('showduplicates')
+	if (showDuplicatesCheckbox && showDuplicatesCheckbox.checked) {
+		formData.append('showduplicates', 'yes')
+	}
+	
 	// Make AJAX request
 	var xhr = new XMLHttpRequest()
 	var requestUrl = window.location.pathname + '?' + formData.toString()
@@ -1865,29 +1891,9 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	}
 	resultsDiv.appendChild(overallStatus)
 	
-	// Add checkbox to show duplicate section
-	var duplicateCheckboxContainer = createHtmlElement('div')
-	duplicateCheckboxContainer.id = 'duplicate-section-toggle'
-	duplicateCheckboxContainer.style.marginTop = '15px'
-	duplicateCheckboxContainer.style.marginBottom = '15px'
-	
-	var duplicateCheckbox = createHtmlElement('input')
-	duplicateCheckbox.type = 'checkbox'
-	duplicateCheckbox.id = 'show-duplicates'
-	duplicateCheckbox.name = 'show-duplicates'
-	
-	// Load saved checkbox state
-	if (supportsLocalStorage() && localStorage['showDuplicates'] === 'yes') {
-		duplicateCheckbox.checked = true
-	}
-	
-	var duplicateLabel = createHtmlElement('label')
-	duplicateLabel.setAttribute('for', 'show-duplicates')
-	duplicateLabel.appendChild(duplicateCheckbox)
-	duplicateLabel.appendChild(document.createTextNode(' Show duplicate errors/warnings section (and hide them in individual URL results)'))
-	
-	duplicateCheckboxContainer.appendChild(duplicateLabel)
-	resultsDiv.appendChild(duplicateCheckboxContainer)
+	// Get checkbox state from form (user selected before validation)
+	var duplicateCheckbox = document.getElementById('showduplicates')
+	var showDuplicatesSection = duplicateCheckbox ? duplicateCheckbox.checked : false
 	
 	// Detect duplicate errors/warnings across URLs
 	var duplicateMessages = findDuplicateMessages(allResults)
@@ -1903,7 +1909,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	duplicateSection.style.backgroundColor = '#fff3e0'
 	
 	// Initially hide if checkbox is not checked
-	if (!duplicateCheckbox.checked) {
+	if (!showDuplicatesSection) {
 		duplicateSection.style.display = 'none'
 	}
 	
@@ -1959,30 +1965,27 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	
 	resultsDiv.appendChild(duplicateSection)
 	
-	// Add event listener for checkbox
-	duplicateCheckbox.addEventListener('change', function(e) {
-		if (e.target.checked) {
-			duplicateSection.style.display = 'block'
-			// Hide duplicate messages in individual URL results
-			hideDuplicateMessagesInUrls(duplicateMessages, allResults)
-			if (supportsLocalStorage()) {
-				localStorage['showDuplicates'] = 'yes'
+	// Add event listener to checkbox in form to toggle duplicate section and messages
+	if (duplicateCheckbox) {
+		duplicateCheckbox.addEventListener('change', function(e) {
+			if (e.target.checked) {
+				duplicateSection.style.display = 'block'
+				// Hide duplicate messages in individual URL results
+				hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+				if (supportsLocalStorage()) {
+					localStorage['showDuplicates'] = 'yes'
+				}
+			} else {
+				duplicateSection.style.display = 'none'
+				// Show all messages in individual URL results
+				showAllMessagesInUrls(duplicateMessages, allResults)
+				if (supportsLocalStorage()) {
+					localStorage['showDuplicates'] = 'no'
+				}
 			}
-		} else {
-			duplicateSection.style.display = 'none'
-			// Show all messages in individual URL results
-			showAllMessagesInUrls(duplicateMessages, allResults)
-			if (supportsLocalStorage()) {
-				localStorage['showDuplicates'] = 'no'
-			}
-		}
-		// Update counts after toggling
-		showCount()
-	}, false)
-	
-	// If checkbox is initially checked, hide duplicates
-	if (duplicateCheckbox.checked) {
-		hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+			// Update counts after toggling
+			showCount()
+		}, false)
 	}
 	
 	// Create container for all URL results
@@ -2091,6 +2094,12 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	})
 	
 	resultsDiv.appendChild(urlResultsContainer)
+	
+	// If checkbox is checked initially, hide duplicates in individual URL results
+	// This must happen AFTER urlResultsContainer is appended to DOM
+	if (showDuplicatesSection) {
+		hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+	}
 	
 	// Re-initialize filters and other UI enhancements
 	setTimeout(function() {

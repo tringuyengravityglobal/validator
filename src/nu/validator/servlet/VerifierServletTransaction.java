@@ -396,6 +396,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
     private boolean checkErrorPages;
 
+    private boolean showDuplicates;
+
     private boolean schemaIsDefault;
 
     private String userAgent;
@@ -975,6 +977,7 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
         if (request.getParameter("showimagereport") != null) {
             imageCollector = new ImageCollector(sourceCode);
         }
+        showDuplicates = (request.getParameter("showduplicates") != null);
 
         String charset = request.getParameter("charset");
         if (charset != null) {
@@ -2198,6 +2201,10 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
     void emitWarningsOnlyField() throws SAXException {
         emitter.checkbox("level", "warning", skipInfoMessages);
+    }
+
+    void emitShowDuplicatesField() throws SAXException {
+        emitter.checkbox("showduplicates", "yes", showDuplicates);
     }
 
     void emitCheckErrorPagesField() throws SAXException {

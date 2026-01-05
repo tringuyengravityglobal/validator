@@ -20,6 +20,9 @@
 			><label title="Show only errors and warnings (no informational messages)." for='level'
 			><?SaxCompiler-code t.emitWarningsOnlyField();
 			?>errors &amp; warnings only</label
+			><label title="Show duplicate errors/warnings section (and hide them in individual URL results)." for='showduplicates'
+			><?SaxCompiler-code t.emitShowDuplicatesField();
+			?>show duplicates</label
 			></span
 			><input id="show_options" type="button" value="Options…"></input
 			><span class="extraoptions hidden"
