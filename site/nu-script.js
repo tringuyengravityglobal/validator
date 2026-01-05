@@ -1642,10 +1642,15 @@ function findDuplicateMessages(allResults) {
 				messageMap.errors[messageText] = {
 					text: messageText,
 					fullElement: errorEl.cloneNode(true),
-					urlIndices: []
+					urlIndices: [],
+					occurrences: []
 				}
 			}
 			messageMap.errors[messageText].urlIndices.push(urlIndex)
+			messageMap.errors[messageText].occurrences.push({
+				urlIndex: urlIndex,
+				element: errorEl.cloneNode(true)
+			})
 		})
 		
 		// Process warnings
@@ -1658,10 +1663,15 @@ function findDuplicateMessages(allResults) {
 				messageMap.warnings[messageText] = {
 					text: messageText,
 					fullElement: warningEl.cloneNode(true),
-					urlIndices: []
+					urlIndices: [],
+					occurrences: []
 				}
 			}
 			messageMap.warnings[messageText].urlIndices.push(urlIndex)
+			messageMap.warnings[messageText].occurrences.push({
+				urlIndex: urlIndex,
+				element: warningEl.cloneNode(true)
+			})
 		})
 	})
 	
@@ -1673,6 +1683,10 @@ function findDuplicateMessages(allResults) {
 		if (messageMap.errors.hasOwnProperty(msgText)) {
 			var msg = messageMap.errors[msgText]
 			if (msg.urlIndices.length >= 2) {
+				// Remove duplicates from urlIndices
+				msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+					return self.indexOf(value) === index
+				})
 				duplicateErrors.push(msg)
 			}
 		}
@@ -1682,6 +1696,10 @@ function findDuplicateMessages(allResults) {
 		if (messageMap.warnings.hasOwnProperty(msgText)) {
 			var msg = messageMap.warnings[msgText]
 			if (msg.urlIndices.length >= 2) {
+				// Remove duplicates from urlIndices
+				msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+					return self.indexOf(value) === index
+				})
 				duplicateWarnings.push(msg)
 			}
 		}
@@ -1806,7 +1824,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 	listItem.style.backgroundColor = '#fff'
 	listItem.style.border = '1px solid #ddd'
 	listItem.style.borderRadius = '3px'
-	
+
 	// Get the original message span with full formatting
 	var originalMessageEl = dupMsg.fullElement.querySelector('p span')
 	if (originalMessageEl) {
@@ -1816,45 +1834,86 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 		messageContent.appendChild(originalMessageEl.cloneNode(true))
 		listItem.appendChild(messageContent)
 	}
-	
+
 	// Add URL list
 	var urlListHeading = createHtmlElement('div')
 	urlListHeading.style.fontWeight = 'bold'
 	urlListHeading.style.marginBottom = '5px'
 	urlListHeading.textContent = 'Appears in ' + dupMsg.urlIndices.length + ' URL(s):'
 	listItem.appendChild(urlListHeading)
-	
+
 	var urlList = createHtmlElement('ul')
 	urlList.style.marginTop = '5px'
 	urlList.style.marginBottom = '0'
-	
+
 	dupMsg.urlIndices.forEach(function(urlIndex) {
-		var urlItem = createHtmlElement('li')
-		var urlLink = createHtmlElement('a')
-		urlLink.href = '#url-' + urlIndex
-		urlLink.textContent = 'URL ' + (urlIndex + 1) + ': ' + allResults.urls[urlIndex].url
-		urlLink.style.color = '#0066cc'
-		urlLink.style.textDecoration = 'none'
-		urlLink.onclick = function(e) {
-			e.preventDefault()
-			// Scroll to the URL section
-			var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
-			if (urlSection) {
-				urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-				// Highlight the section briefly
-				var originalBg = urlSection.style.backgroundColor
-				urlSection.style.backgroundColor = '#ffffcc'
-				setTimeout(function() {
-					urlSection.style.backgroundColor = originalBg
-				}, 2000)
+		// Get all occurrences for this URL
+		var urlOccurrences = dupMsg.occurrences.filter(function(occ) {
+			return occ.urlIndex === urlIndex
+		})
+
+		urlOccurrences.forEach(function(occurrence, occIndex) {
+			var urlItem = createHtmlElement('li')
+
+			var urlLink = createHtmlElement('a')
+			urlLink.href = '#url-' + urlIndex
+			urlLink.textContent = 'URL ' + (urlIndex + 1) + ': ' + allResults.urls[urlIndex].url
+			urlLink.style.color = '#0066cc'
+			urlLink.style.textDecoration = 'none'
+			urlLink.onclick = function(e) {
+				e.preventDefault()
+				// Scroll to the URL section
+				var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
+				if (urlSection) {
+					urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+					// Highlight the section briefly
+					var originalBg = urlSection.style.backgroundColor
+					urlSection.style.backgroundColor = '#ffffcc'
+					setTimeout(function() {
+						urlSection.style.backgroundColor = originalBg
+					}, 2000)
+				}
 			}
-		}
-		urlItem.appendChild(urlLink)
-		urlList.appendChild(urlItem)
+			urlItem.appendChild(urlLink)
+
+			// Extract line and column information from the occurrence element
+			var locationInfo = extractLocationInfo(occurrence.element)
+			if (locationInfo) {
+				var locationSpan = createHtmlElement('span')
+				locationSpan.style.marginLeft = '10px'
+				locationSpan.style.color = '#666'
+				locationSpan.style.fontSize = '0.9em'
+				locationSpan.textContent = locationInfo
+				urlItem.appendChild(locationSpan)
+			}
+
+			urlList.appendChild(urlItem)
+		})
 	})
-	
+
 	listItem.appendChild(urlList)
 	return listItem
+}
+
+/**
+ * Extract location information (line/column) from an error/warning element
+ */
+function extractLocationInfo(messageEl) {
+	// Look for all <p> elements in the message
+	var paragraphs = messageEl.querySelectorAll('p')
+
+	for (var i = 0; i < paragraphs.length; i++) {
+		var p = paragraphs[i]
+		var text = p.textContent ?? p.innerText
+
+		// Look for patterns like "From line X, column Y; to line Z, column W"
+		// or "At line X, column Y"
+		if (text.indexOf('From line') !== -1 || text.indexOf('At line') !== -1) {
+			return text.trim()
+		}
+	}
+
+	return null
 }
 
 function displayMultiUrlResults(allResults, resultsDiv) {
