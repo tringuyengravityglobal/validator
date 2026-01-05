@@ -1845,22 +1845,71 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 	listItem.style.border = '1px solid #ddd'
 	listItem.style.borderRadius = '3px'
 
+	// Create header with toggle button
+	var headerDiv = createHtmlElement('div')
+	headerDiv.style.display = 'flex'
+	headerDiv.style.alignItems = 'flex-start'
+	headerDiv.style.cursor = 'pointer'
+	headerDiv.style.marginBottom = '10px'
+	headerDiv.style.padding = '5px'
+	headerDiv.style.borderRadius = '3px'
+	headerDiv.style.transition = 'background-color 0.2s'
+	
+	// Add hover effect
+	headerDiv.onmouseenter = function() {
+		headerDiv.style.backgroundColor = '#f5f5f5'
+	}
+	headerDiv.onmouseleave = function() {
+		headerDiv.style.backgroundColor = 'transparent'
+	}
+	
+	// Toggle icon
+	var toggleIcon = createHtmlElement('span')
+	toggleIcon.textContent = '▶ '
+	toggleIcon.style.marginRight = '8px'
+	toggleIcon.style.fontSize = '0.8em'
+	toggleIcon.style.color = '#666'
+	toggleIcon.style.transition = 'transform 0.2s'
+	toggleIcon.style.display = 'inline-block'
+	headerDiv.appendChild(toggleIcon)
+	
 	// Get the original message span with full formatting
 	var originalMessageEl = dupMsg.fullElement.querySelector('p span')
 	if (originalMessageEl) {
 		var messageContent = createHtmlElement('div')
 		messageContent.className = 'duplicate-message-content'
-		messageContent.style.marginBottom = '10px'
+		messageContent.style.flex = '1'
 		messageContent.appendChild(originalMessageEl.cloneNode(true))
-		listItem.appendChild(messageContent)
+		
+		// Add URL count badge
+		var urlCountBadge = createHtmlElement('span')
+		urlCountBadge.textContent = ' (' + dupMsg.urlIndices.length + ' URL' + (dupMsg.urlIndices.length > 1 ? 's' : '') + ')'
+		urlCountBadge.style.fontSize = '0.85em'
+		urlCountBadge.style.color = '#666'
+		urlCountBadge.style.fontWeight = 'normal'
+		urlCountBadge.style.marginLeft = '8px'
+		messageContent.appendChild(urlCountBadge)
+		
+		headerDiv.appendChild(messageContent)
 	}
+	
+	listItem.appendChild(headerDiv)
 
-	// Add URL list
+	// Create details container (initially hidden)
+	var detailsContainer = createHtmlElement('div')
+	detailsContainer.className = 'duplicate-details'
+	detailsContainer.style.display = 'none'
+	detailsContainer.style.marginTop = '10px'
+	detailsContainer.style.paddingLeft = '20px'
+	detailsContainer.style.borderLeft = '3px solid #e0e0e0'
+
+	// Add URL list heading
 	var urlListHeading = createHtmlElement('div')
 	urlListHeading.style.fontWeight = 'bold'
-	urlListHeading.style.marginBottom = '5px'
+	urlListHeading.style.marginBottom = '8px'
+	urlListHeading.style.color = '#555'
 	urlListHeading.textContent = 'Appears in ' + dupMsg.urlIndices.length + ' URL(s):'
-	listItem.appendChild(urlListHeading)
+	detailsContainer.appendChild(urlListHeading)
 
 	var urlList = createHtmlElement('ul')
 	urlList.style.marginTop = '5px'
@@ -1929,7 +1978,25 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 		})
 	})
 
-	listItem.appendChild(urlList)
+	detailsContainer.appendChild(urlList)
+	listItem.appendChild(detailsContainer)
+	
+	// Add toggle functionality
+	headerDiv.onclick = function() {
+		var isExpanded = detailsContainer.style.display !== 'none'
+		if (isExpanded) {
+			// Collapse
+			detailsContainer.style.display = 'none'
+			toggleIcon.textContent = '▶ '
+			toggleIcon.style.transform = 'rotate(0deg)'
+		} else {
+			// Expand
+			detailsContainer.style.display = 'block'
+			toggleIcon.textContent = '▼ '
+			toggleIcon.style.transform = 'rotate(0deg)'
+		}
+	}
+	
 	return listItem
 }
 
