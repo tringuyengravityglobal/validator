@@ -1197,11 +1197,6 @@ input#acceptlanguage {
 	font-weight: bold;
 }
 
-#duplicate-messages-section p {
-	margin-bottom: 15px;
-	line-height: 1.5;
-}
-
 .duplicate-messages-list {
 	list-style-type: decimal;
 	padding-left: 25px;
