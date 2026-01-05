@@ -1675,9 +1675,13 @@ function findDuplicateMessages(allResults) {
 		})
 	})
 	
-	// Filter to only include messages that appear in 2+ URLs
-	var duplicateErrors = []
-	var duplicateWarnings = []
+	// Filter to include messages that appear in 2+ URLs
+	// Separate into: common (all URLs) and duplicate (2+ URLs but not all)
+	var totalUrls = allResults.urls.length
+	var commonErrors = []      // Errors in ALL URLs
+	var duplicateErrors = []   // Errors in 2+ URLs but not all
+	var commonWarnings = []    // Warnings in ALL URLs
+	var duplicateWarnings = [] // Warnings in 2+ URLs but not all
 	
 	for (var msgText in messageMap.errors) {
 		if (messageMap.errors.hasOwnProperty(msgText)) {
@@ -1686,8 +1690,12 @@ function findDuplicateMessages(allResults) {
 			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
 				return self.indexOf(value) === index
 			})
-			// Then check if it appears in 2+ URLs
-			if (msg.urlIndices.length >= 2) {
+			// Check if it appears in ALL URLs
+			if (msg.urlIndices.length === totalUrls) {
+				commonErrors.push(msg)
+			}
+			// Or if it appears in 2+ URLs (but not all)
+			else if (msg.urlIndices.length >= 2) {
 				duplicateErrors.push(msg)
 			}
 		}
@@ -1700,16 +1708,26 @@ function findDuplicateMessages(allResults) {
 			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
 				return self.indexOf(value) === index
 			})
-			// Then check if it appears in 2+ URLs
-			if (msg.urlIndices.length >= 2) {
+			// Check if it appears in ALL URLs
+			if (msg.urlIndices.length === totalUrls) {
+				commonWarnings.push(msg)
+			}
+			// Or if it appears in 2+ URLs (but not all)
+			else if (msg.urlIndices.length >= 2) {
 				duplicateWarnings.push(msg)
 			}
 		}
 	}
 	
 	return {
-		errors: duplicateErrors,
-		warnings: duplicateWarnings
+		common: {
+			errors: commonErrors,
+			warnings: commonWarnings
+		},
+		duplicate: {
+			errors: duplicateErrors,
+			warnings: duplicateWarnings
+		}
 	}
 }
 
@@ -1745,9 +1763,12 @@ function extractMessageText(messageEl) {
  * Hide duplicate messages in individual URL results
  */
 function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
-	var allDuplicateMessages = duplicateMessages.errors.concat(duplicateMessages.warnings)
+	// Combine common and duplicate messages
+	var allCommonMessages = duplicateMessages.common.errors.concat(duplicateMessages.common.warnings)
+	var allDuplicateMessages = duplicateMessages.duplicate.errors.concat(duplicateMessages.duplicate.warnings)
+	var allMessages = allCommonMessages.concat(allDuplicateMessages)
 	
-	allDuplicateMessages.forEach(function(dupMsg) {
+	allMessages.forEach(function(dupMsg) {
 		dupMsg.urlIndices.forEach(function(urlIndex) {
 			var urlSection = document.getElementById('url-' + urlIndex)
 			if (!urlSection) return
@@ -1775,19 +1796,16 @@ function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
  * Show all messages in individual URL results (unhide duplicates)
  */
 function showAllMessagesInUrls(duplicateMessages, allResults) {
-	var allDuplicateMessages = duplicateMessages.errors.concat(duplicateMessages.warnings)
-	
-	allDuplicateMessages.forEach(function(dupMsg) {
-		dupMsg.urlIndices.forEach(function(urlIndex) {
-			var urlSection = document.getElementById('url-' + urlIndex)
-			if (!urlSection) return
-			
-			// Find all messages marked as duplicate-hidden
-			var messages = urlSection.querySelectorAll('.duplicate-hidden')
-			messages.forEach(function(msgEl) {
-				msgEl.classList.remove('duplicate-hidden')
-				msgEl.classList.remove('hidden')
-			})
+	// Simply remove all duplicate-hidden classes from all URL sections
+	allResults.urls.forEach(function(urlResult, urlIndex) {
+		var urlSection = document.getElementById('url-' + urlIndex)
+		if (!urlSection) return
+		
+		// Find all messages marked as duplicate-hidden
+		var messages = urlSection.querySelectorAll('.duplicate-hidden')
+		messages.forEach(function(msgEl) {
+			msgEl.classList.remove('duplicate-hidden')
+			msgEl.classList.remove('hidden')
 		})
 	})
 	
@@ -2032,52 +2050,151 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	// Detect duplicate errors/warnings across URLs
 	var duplicateMessages = findDuplicateMessages(allResults)
 	
-	// Create duplicate section
+	// Create duplicate section container
 	var duplicateSection = createHtmlElement('div')
 	duplicateSection.id = 'duplicate-messages-section'
 	duplicateSection.style.marginTop = '20px'
 	duplicateSection.style.marginBottom = '30px'
-	duplicateSection.style.padding = '15px'
-	duplicateSection.style.border = '2px solid #ff9800'
-	duplicateSection.style.borderRadius = '5px'
-	duplicateSection.style.backgroundColor = '#fff3e0'
 	
 	// Initially hide if checkbox is not checked
 	if (!showDuplicatesSection) {
 		duplicateSection.style.display = 'none'
 	}
 	
-	var duplicateHeading = createHtmlElement('h3')
-	duplicateHeading.textContent = 'Duplicate Messages Across URLs'
-	duplicateHeading.style.marginTop = '0'
-	duplicateHeading.style.color = '#e65100'
-	duplicateSection.appendChild(duplicateHeading)
+	var mainHeading = createHtmlElement('h3')
+	mainHeading.textContent = 'Duplicate Messages Across URLs'
+	mainHeading.style.marginTop = '0'
+	mainHeading.style.color = '#e65100'
+	duplicateSection.appendChild(mainHeading)
 	
-if (duplicateMessages.errors.length > 0) {
-		var duplicateDescription = createHtmlElement('p')
-		duplicateDescription.textContent = 'These messages appear in multiple URLs. Click on each message to see which URLs contain it.'
-		duplicateDescription.style.fontStyle = 'italic'
-		duplicateSection.appendChild(duplicateDescription)
+	// Section 1: Common Messages (in ALL URLs)
+	var hasCommonMessages = duplicateMessages.common.errors.length > 0 || duplicateMessages.common.warnings.length > 0
+	if (hasCommonMessages) {
+		var commonSection = createHtmlElement('div')
+		commonSection.style.padding = '15px'
+		commonSection.style.marginBottom = '20px'
+		commonSection.style.border = '2px solid #d32f2f'
+		commonSection.style.borderRadius = '5px'
+		commonSection.style.backgroundColor = '#ffebee'
+		
+		var commonHeading = createHtmlElement('h4')
+		commonHeading.textContent = 'Common Messages Across All URLs (' + allResults.urls.length + ' URLs)'
+		commonHeading.style.marginTop = '0'
+		commonHeading.style.color = '#b71c1c'
+		commonSection.appendChild(commonHeading)
+		
+		var commonDescription = createHtmlElement('p')
+		commonDescription.textContent = 'These messages appear in ALL validated URLs. Fixing them will improve all pages.'
+		commonDescription.style.fontStyle = 'italic'
+		commonDescription.style.marginBottom = '15px'
+		commonSection.appendChild(commonDescription)
+		
+		// Display common errors
+		if (duplicateMessages.common.errors.length > 0) {
+			var commonErrorsHeading = createHtmlElement('h5')
+			commonErrorsHeading.textContent = 'Common Errors (' + duplicateMessages.common.errors.length + ')'
+			commonErrorsHeading.style.color = '#c00'
+			commonErrorsHeading.style.marginTop = '10px'
+			commonSection.appendChild(commonErrorsHeading)
+			
+			var commonErrorsList = createHtmlElement('ol')
+			commonErrorsList.className = 'common-messages-list'
+			duplicateMessages.common.errors.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+				commonErrorsList.appendChild(listItem)
+			})
+			commonSection.appendChild(commonErrorsList)
+		}
+		
+		// Display common warnings
+		if (duplicateMessages.common.warnings.length > 0) {
+			var commonWarningsHeading = createHtmlElement('h5')
+			commonWarningsHeading.textContent = 'Common Warnings (' + duplicateMessages.common.warnings.length + ')'
+			commonWarningsHeading.style.color = '#f90'
+			commonWarningsHeading.style.marginTop = '15px'
+			commonSection.appendChild(commonWarningsHeading)
+			
+			var commonWarningsList = createHtmlElement('ol')
+			commonWarningsList.className = 'common-messages-list'
+			duplicateMessages.common.warnings.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'warning')
+				commonWarningsList.appendChild(listItem)
+			})
+			commonSection.appendChild(commonWarningsList)
+		}
+		
+		duplicateSection.appendChild(commonSection)
+	}
+	
+	// Section 2: Duplicate Messages (in 2+ URLs but not all)
+	var hasDuplicateMessages = duplicateMessages.duplicate.errors.length > 0 || duplicateMessages.duplicate.warnings.length > 0
+	if (hasDuplicateMessages) {
+		var partialDuplicateSection = createHtmlElement('div')
+		partialDuplicateSection.style.padding = '15px'
+		partialDuplicateSection.style.border = '2px solid #ff9800'
+		partialDuplicateSection.style.borderRadius = '5px'
+		partialDuplicateSection.style.backgroundColor = '#fff3e0'
+		
+		var partialHeading = createHtmlElement('h4')
+		partialHeading.textContent = 'Duplicate Messages (2+ URLs)'
+		partialHeading.style.marginTop = '0'
+		partialHeading.style.color = '#e65100'
+		partialDuplicateSection.appendChild(partialHeading)
+		
+		var partialDescription = createHtmlElement('p')
+		partialDescription.textContent = 'These messages appear in multiple URLs but not all. Click on each message to see which URLs contain it.'
+		partialDescription.style.fontStyle = 'italic'
+		partialDescription.style.marginBottom = '15px'
+		partialDuplicateSection.appendChild(partialDescription)
 		
 		// Display duplicate errors
-		var errorsHeading = createHtmlElement('h4')
-		errorsHeading.textContent = 'Duplicate Errors (' + duplicateMessages.errors.length + ')'
-		errorsHeading.style.color = '#c00'
-		duplicateSection.appendChild(errorsHeading)
+		if (duplicateMessages.duplicate.errors.length > 0) {
+			var errorsHeading = createHtmlElement('h5')
+			errorsHeading.textContent = 'Duplicate Errors (' + duplicateMessages.duplicate.errors.length + ')'
+			errorsHeading.style.color = '#c00'
+			errorsHeading.style.marginTop = '10px'
+			partialDuplicateSection.appendChild(errorsHeading)
+			
+			var errorsList = createHtmlElement('ol')
+			errorsList.className = 'duplicate-messages-list'
+			duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+				errorsList.appendChild(listItem)
+			})
+			partialDuplicateSection.appendChild(errorsList)
+		}
 		
-		var errorsList = createHtmlElement('ol')
-		errorsList.className = 'duplicate-messages-list'
-		duplicateMessages.errors.forEach(function(dupMsg) {
-			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-			errorsList.appendChild(listItem)
-		})
-		duplicateSection.appendChild(errorsList)
-} else {
+		// Display duplicate warnings
+		if (duplicateMessages.duplicate.warnings.length > 0) {
+			var warningsHeading = createHtmlElement('h5')
+			warningsHeading.textContent = 'Duplicate Warnings (' + duplicateMessages.duplicate.warnings.length + ')'
+			warningsHeading.style.color = '#f90'
+			warningsHeading.style.marginTop = '15px'
+			partialDuplicateSection.appendChild(warningsHeading)
+			
+			var warningsList = createHtmlElement('ol')
+			warningsList.className = 'duplicate-messages-list'
+			duplicateMessages.duplicate.warnings.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'warning')
+				warningsList.appendChild(listItem)
+			})
+			partialDuplicateSection.appendChild(warningsList)
+		}
+		
+		duplicateSection.appendChild(partialDuplicateSection)
+	}
+	
+	// If no duplicate or common messages at all
+	if (!hasCommonMessages && !hasDuplicateMessages) {
 		var noduplicates = createHtmlElement('p')
 		noduplicates.textContent = 'No duplicate messages found across the validated URLs.'
 		noduplicates.style.fontStyle = 'italic'
+		noduplicates.style.padding = '15px'
+		noduplicates.style.border = '2px solid #4caf50'
+		noduplicates.style.borderRadius = '5px'
+		noduplicates.style.backgroundColor = '#e8f5e9'
 		duplicateSection.appendChild(noduplicates)
-}
+	}
 	
 	// Add event listener to checkbox in form to toggle duplicate section and messages
 	if (duplicateCheckbox) {
