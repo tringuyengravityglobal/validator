@@ -1253,3 +1253,8 @@ input#acceptlanguage {
 	color: #004499;
 	text-decoration: underline;
 }
+
+/* Hide duplicate messages when checkbox is enabled */
+.duplicate-hidden {
+	display: none !important;
+}

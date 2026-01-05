@@ -1696,6 +1696,80 @@ function extractMessageText(messageEl) {
 }
 
 /**
+ * Hide duplicate messages in individual URL results
+ */
+function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
+	var allDuplicateMessages = duplicateMessages.errors.concat(duplicateMessages.warnings)
+	
+	allDuplicateMessages.forEach(function(dupMsg) {
+		dupMsg.urlIndices.forEach(function(urlIndex) {
+			var urlSection = document.getElementById('url-' + urlIndex)
+			if (!urlSection) return
+			
+			// Find all messages in this URL that match the duplicate message
+			var messages = urlSection.querySelectorAll('.error, .warning')
+			messages.forEach(function(msgEl) {
+				var msgText = extractMessageText(msgEl)
+				if (msgText === dupMsg.text) {
+					// Add a special class to mark as duplicate
+					if (!msgEl.classList.contains('duplicate-hidden')) {
+						msgEl.classList.add('duplicate-hidden')
+						msgEl.classList.add('hidden')
+					}
+				}
+			})
+		})
+	})
+	
+	// Update URL counts after hiding duplicates
+	updateUrlCounts()
+}
+
+/**
+ * Show all messages in individual URL results (unhide duplicates)
+ */
+function showAllMessagesInUrls(duplicateMessages, allResults) {
+	var allDuplicateMessages = duplicateMessages.errors.concat(duplicateMessages.warnings)
+	
+	allDuplicateMessages.forEach(function(dupMsg) {
+		dupMsg.urlIndices.forEach(function(urlIndex) {
+			var urlSection = document.getElementById('url-' + urlIndex)
+			if (!urlSection) return
+			
+			// Find all messages marked as duplicate-hidden
+			var messages = urlSection.querySelectorAll('.duplicate-hidden')
+			messages.forEach(function(msgEl) {
+				msgEl.classList.remove('duplicate-hidden')
+				msgEl.classList.remove('hidden')
+			})
+		})
+	})
+	
+	// Update URL counts after showing duplicates
+	updateUrlCounts()
+}
+
+/**
+ * Update the error/warning counts in URL headers
+ */
+function updateUrlCounts() {
+	var urlSections = document.querySelectorAll('.url-result-section')
+	urlSections.forEach(function(urlSection, index) {
+		var countText = urlSection.querySelector('.count-text')
+		if (!countText) return
+		
+		// Count visible errors and warnings
+		var visibleErrors = urlSection.querySelectorAll('.error:not(.hidden)')
+		var visibleWarnings = urlSection.querySelectorAll('.warning:not(.hidden)')
+		
+		var errorCount = visibleErrors.length
+		var warningCount = visibleWarnings.length
+		
+		countText.textContent = '(' + errorCount + ' error(s), ' + warningCount + ' warning(s))'
+	})
+}
+
+/**
  * Create a list item for a duplicate message
  */
 function createDuplicateMessageItem(dupMsg, allResults, messageType) {
@@ -1810,7 +1884,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	var duplicateLabel = createHtmlElement('label')
 	duplicateLabel.setAttribute('for', 'show-duplicates')
 	duplicateLabel.appendChild(duplicateCheckbox)
-	duplicateLabel.appendChild(document.createTextNode(' Show duplicate errors/warnings section (groups messages that appear in multiple URLs)'))
+	duplicateLabel.appendChild(document.createTextNode(' Show duplicate errors/warnings section (and hide them in individual URL results)'))
 	
 	duplicateCheckboxContainer.appendChild(duplicateLabel)
 	resultsDiv.appendChild(duplicateCheckboxContainer)
@@ -1889,16 +1963,27 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	duplicateCheckbox.addEventListener('change', function(e) {
 		if (e.target.checked) {
 			duplicateSection.style.display = 'block'
+			// Hide duplicate messages in individual URL results
+			hideDuplicateMessagesInUrls(duplicateMessages, allResults)
 			if (supportsLocalStorage()) {
 				localStorage['showDuplicates'] = 'yes'
 			}
 		} else {
 			duplicateSection.style.display = 'none'
+			// Show all messages in individual URL results
+			showAllMessagesInUrls(duplicateMessages, allResults)
 			if (supportsLocalStorage()) {
 				localStorage['showDuplicates'] = 'no'
 			}
 		}
+		// Update counts after toggling
+		showCount()
 	}, false)
+	
+	// If checkbox is initially checked, hide duplicates
+	if (duplicateCheckbox.checked) {
+		hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+	}
 	
 	// Create container for all URL results
 	var urlResultsContainer = createHtmlElement('div')
