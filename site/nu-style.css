@@ -1090,6 +1090,8 @@ input#acceptlanguage {
 	border-radius: 4px;
 	padding: 10px;
 	background-color: #f9f9f9;
+	transition: background-color 0.5s ease;
+	scroll-margin-top: 20px;
 }
 
 .url-result-section .url-header {
@@ -1143,4 +1145,111 @@ input#acceptlanguage {
 	margin-top: 20px;
 	border-top: 2px solid #ccc;
 	padding-top: 15px;
+}
+
+/* Duplicate Messages Section Styles */
+#duplicate-section-toggle {
+	margin-top: 15px;
+	margin-bottom: 15px;
+	padding: 10px;
+	background-color: #f9f9f9;
+	border-radius: 4px;
+}
+
+#duplicate-section-toggle label {
+	font-size: 1em;
+	font-weight: 500;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+}
+
+#duplicate-section-toggle input[type="checkbox"] {
+	margin-right: 8px;
+	cursor: pointer;
+	width: 18px;
+	height: 18px;
+}
+
+#duplicate-messages-section {
+	margin-top: 20px;
+	margin-bottom: 30px;
+	padding: 15px;
+	border: 2px solid #ff9800;
+	border-radius: 5px;
+	background-color: #fff3e0;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#duplicate-messages-section h3 {
+	margin-top: 0;
+	margin-bottom: 15px;
+	color: #e65100;
+	font-size: 1.3em;
+	border-bottom: 2px solid #ff9800;
+	padding-bottom: 10px;
+}
+
+#duplicate-messages-section h4 {
+	margin-top: 20px;
+	margin-bottom: 10px;
+	font-size: 1.1em;
+	font-weight: bold;
+}
+
+#duplicate-messages-section p {
+	margin-bottom: 15px;
+	line-height: 1.5;
+}
+
+.duplicate-messages-list {
+	list-style-type: decimal;
+	padding-left: 25px;
+	margin-top: 10px;
+}
+
+.duplicate-message-item {
+	margin-bottom: 15px;
+	padding: 10px;
+	background-color: #fff;
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+	transition: box-shadow 0.2s;
+}
+
+.duplicate-message-item:hover {
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.duplicate-message-content {
+	margin-bottom: 10px;
+	padding: 8px;
+	background-color: #fafafa;
+	border-left: 3px solid #ff9800;
+	font-size: 0.95em;
+	line-height: 1.6;
+}
+
+.duplicate-message-item ul {
+	margin-top: 5px;
+	margin-bottom: 0;
+	padding-left: 20px;
+	list-style-type: circle;
+}
+
+.duplicate-message-item ul li {
+	margin-bottom: 5px;
+	padding: 3px 0;
+}
+
+.duplicate-message-item a {
+	color: #0066cc;
+	text-decoration: none;
+	transition: color 0.2s;
+}
+
+.duplicate-message-item a:hover {
+	color: #004499;
+	text-decoration: underline;
 }
