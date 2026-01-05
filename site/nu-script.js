@@ -1919,49 +1919,31 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	duplicateHeading.style.color = '#e65100'
 	duplicateSection.appendChild(duplicateHeading)
 	
-	if (duplicateMessages.errors.length > 0 || duplicateMessages.warnings.length > 0) {
+if (duplicateMessages.errors.length > 0) {
 		var duplicateDescription = createHtmlElement('p')
 		duplicateDescription.textContent = 'These messages appear in multiple URLs. Click on each message to see which URLs contain it.'
 		duplicateDescription.style.fontStyle = 'italic'
 		duplicateSection.appendChild(duplicateDescription)
 		
 		// Display duplicate errors
-		if (duplicateMessages.errors.length > 0) {
-			var errorsHeading = createHtmlElement('h4')
-			errorsHeading.textContent = 'Duplicate Errors (' + duplicateMessages.errors.length + ')'
-			errorsHeading.style.color = '#c00'
-			duplicateSection.appendChild(errorsHeading)
-			
-			var errorsList = createHtmlElement('ol')
-			errorsList.className = 'duplicate-messages-list'
-			duplicateMessages.errors.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-				errorsList.appendChild(listItem)
-			})
-			duplicateSection.appendChild(errorsList)
-		}
+		var errorsHeading = createHtmlElement('h4')
+		errorsHeading.textContent = 'Duplicate Errors (' + duplicateMessages.errors.length + ')'
+		errorsHeading.style.color = '#c00'
+		duplicateSection.appendChild(errorsHeading)
 		
-		// Display duplicate warnings
-		if (duplicateMessages.warnings.length > 0) {
-			var warningsHeading = createHtmlElement('h4')
-			warningsHeading.textContent = 'Duplicate Warnings (' + duplicateMessages.warnings.length + ')'
-			warningsHeading.style.color = '#f90'
-			duplicateSection.appendChild(warningsHeading)
-			
-			var warningsList = createHtmlElement('ol')
-			warningsList.className = 'duplicate-messages-list'
-			duplicateMessages.warnings.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'warning')
-				warningsList.appendChild(listItem)
-			})
-			duplicateSection.appendChild(warningsList)
-		}
-	} else {
+		var errorsList = createHtmlElement('ol')
+		errorsList.className = 'duplicate-messages-list'
+		duplicateMessages.errors.forEach(function(dupMsg) {
+			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+			errorsList.appendChild(listItem)
+		})
+		duplicateSection.appendChild(errorsList)
+} else {
 		var noduplicates = createHtmlElement('p')
 		noduplicates.textContent = 'No duplicate messages found across the validated URLs.'
 		noduplicates.style.fontStyle = 'italic'
 		duplicateSection.appendChild(noduplicates)
-	}
+}
 	
 	// Add event listener to checkbox in form to toggle duplicate section and messages
 	if (duplicateCheckbox) {
