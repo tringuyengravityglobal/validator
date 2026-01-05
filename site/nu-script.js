@@ -1858,8 +1858,6 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 			var urlLink = createHtmlElement('a')
 			urlLink.href = '#url-' + urlIndex
 			urlLink.textContent = 'URL ' + (urlIndex + 1) + ': ' + allResults.urls[urlIndex].url
-			urlLink.style.color = '#0066cc'
-			urlLink.style.textDecoration = 'none'
 			urlLink.onclick = function(e) {
 				e.preventDefault()
 				scrollToUrlSection(urlIndex)
@@ -1871,7 +1869,6 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 			if (locationInfo) {
 				var locationSpan = createHtmlElement('span')
 				locationSpan.style.marginLeft = '10px'
-				locationSpan.style.color = '#666'
 				locationSpan.style.fontSize = '0.9em'
 				
 				// If there's a source link, create a clickable link
@@ -1879,8 +1876,6 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 					var sourceLink = createHtmlElement('a')
 					sourceLink.href = locationInfo.href
 					sourceLink.textContent = locationInfo.text
-					sourceLink.style.color = '#666'
-					sourceLink.style.textDecoration = 'none'
 					sourceLink.onclick = function(e) {
 						e.preventDefault()
 						scrollToUrlSectionAndSource(urlIndex, locationInfo.href)

@@ -1243,17 +1243,6 @@ input#acceptlanguage {
 	padding: 3px 0;
 }
 
-.duplicate-message-item a {
-	color: #0066cc;
-	text-decoration: none;
-	transition: color 0.2s;
-}
-
-.duplicate-message-item a:hover {
-	color: #004499;
-	text-decoration: underline;
-}
-
 /* Hide duplicate messages when checkbox is enabled */
 .duplicate-hidden {
 	display: none !important;
