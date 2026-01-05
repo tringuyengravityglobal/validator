@@ -1854,7 +1854,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 
 		urlOccurrences.forEach(function(occurrence, occIndex) {
 			var urlItem = createHtmlElement('li')
-
+			
 			var urlLink = createHtmlElement('a')
 			urlLink.href = '#url-' + urlIndex
 			urlLink.textContent = 'URL ' + (urlIndex + 1) + ': ' + allResults.urls[urlIndex].url
@@ -1862,20 +1862,10 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 			urlLink.style.textDecoration = 'none'
 			urlLink.onclick = function(e) {
 				e.preventDefault()
-				// Scroll to the URL section
-				var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
-				if (urlSection) {
-					urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-					// Highlight the section briefly
-					var originalBg = urlSection.style.backgroundColor
-					urlSection.style.backgroundColor = '#ffffcc'
-					setTimeout(function() {
-						urlSection.style.backgroundColor = originalBg
-					}, 2000)
-				}
+				scrollToUrlSection(urlIndex)
 			}
 			urlItem.appendChild(urlLink)
-
+			
 			// Extract line and column information from the occurrence element
 			var locationInfo = extractLocationInfo(occurrence.element)
 			if (locationInfo) {
@@ -1883,10 +1873,27 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 				locationSpan.style.marginLeft = '10px'
 				locationSpan.style.color = '#666'
 				locationSpan.style.fontSize = '0.9em'
-				locationSpan.textContent = locationInfo
+				
+				// If there's a source link, create a clickable link
+				if (locationInfo.href) {
+					var sourceLink = createHtmlElement('a')
+					sourceLink.href = locationInfo.href
+					sourceLink.textContent = locationInfo.text
+					sourceLink.style.color = '#666'
+					sourceLink.style.textDecoration = 'none'
+					sourceLink.onclick = function(e) {
+						e.preventDefault()
+						scrollToUrlSectionAndSource(urlIndex, locationInfo.href)
+					}
+					locationSpan.appendChild(sourceLink)
+				} else {
+					// No source link, just display text
+					locationSpan.textContent = locationInfo.text
+				}
+				
 				urlItem.appendChild(locationSpan)
 			}
-
+			
 			urlList.appendChild(urlItem)
 		})
 	})
@@ -1896,23 +1903,94 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 }
 
 /**
+ * Scroll to a URL section in multi-URL results
+ * @param {number} urlIndex - The index of the URL section to scroll to
+ */
+function scrollToUrlSection(urlIndex) {
+	var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
+	if (urlSection) {
+		urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+		// Highlight the section briefly
+		highlightElement(urlSection, 2000)
+	}
+}
+
+/**
+ * Scroll to a URL section and then to a specific source line
+ * @param {number} urlIndex - The index of the URL section
+ * @param {string} sourceHref - The href to the source line (e.g., "#l10c5")
+ */
+function scrollToUrlSectionAndSource(urlIndex, sourceHref) {
+	var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
+	if (!urlSection) return
+	
+	// Scroll to URL section first
+	urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+	
+	// Then try to scroll to the specific source line
+	setTimeout(function() {
+		var sourceElement = urlSection.querySelector(sourceHref)
+		if (sourceElement) {
+			sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+			// Use the existing updateFragmentIdHilite by updating the hash
+			// This ensures consistent highlighting behavior
+			var oldHash = window.location.hash
+			window.location.hash = sourceHref
+			// Restore hash after a moment to avoid affecting browser history too much
+			setTimeout(function() {
+				if (window.location.hash === sourceHref) {
+					// Keep the hash, updateFragmentIdHilite will handle the styling
+				}
+			}, 100)
+		}
+	}, 500)
+}
+
+/**
+ * Highlight an element temporarily
+ * @param {HTMLElement} element - The element to highlight
+ * @param {number} duration - Duration in milliseconds
+ */
+function highlightElement(element, duration) {
+	var originalBg = element.style.backgroundColor
+	element.style.backgroundColor = '#ffffcc'
+	setTimeout(function() {
+		element.style.backgroundColor = originalBg
+	}, duration)
+}
+
+/**
  * Extract location information (line/column) from an error/warning element
+ * Returns an object with text and optional href for linking to source
  */
 function extractLocationInfo(messageEl) {
 	// Look for all <p> elements in the message
 	var paragraphs = messageEl.querySelectorAll('p')
-
+	
 	for (var i = 0; i < paragraphs.length; i++) {
 		var p = paragraphs[i]
 		var text = p.textContent ?? p.innerText
-
+		
 		// Look for patterns like "From line X, column Y; to line Z, column W"
 		// or "At line X, column Y"
-		if (text.indexOf('From line') !== -1 || text.indexOf('At line') !== -1) {
-			return text.trim()
+		if (text.indexOf('From line') !== -1 || text.indexOf('At line') !== -1 || text.indexOf('On line') !== -1) {
+			// Check if there's a link inside this paragraph
+			var link = p.querySelector('a')
+			if (link && link.href) {
+				// Extract the hash fragment from the link
+				var href = link.getAttribute('href')
+				return {
+					text: text.trim(),
+					href: href
+				}
+			}
+			return {
+				text: text.trim(),
+				href: null
+			}
 		}
 	}
-
+	
 	return null
 }
 
