@@ -1760,22 +1760,22 @@ function extractMessageText(messageEl) {
 }
 
 /**
- * Hide duplicate messages in individual URL results
+ * Hide duplicate errors in individual URL results (warnings are not hidden)
  */
 function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
-	// Combine common and duplicate messages
-	var allCommonMessages = duplicateMessages.common.errors.concat(duplicateMessages.common.warnings)
-	var allDuplicateMessages = duplicateMessages.duplicate.errors.concat(duplicateMessages.duplicate.warnings)
-	var allMessages = allCommonMessages.concat(allDuplicateMessages)
+	// Only hide errors, not warnings
+	var allCommonErrors = duplicateMessages.common.errors
+	var allDuplicateErrors = duplicateMessages.duplicate.errors
+	var allErrors = allCommonErrors.concat(allDuplicateErrors)
 	
-	allMessages.forEach(function(dupMsg) {
+	allErrors.forEach(function(dupMsg) {
 		dupMsg.urlIndices.forEach(function(urlIndex) {
 			var urlSection = document.getElementById('url-' + urlIndex)
 			if (!urlSection) return
 			
-			// Find all messages in this URL that match the duplicate message
-			var messages = urlSection.querySelectorAll('.error, .warning')
-			messages.forEach(function(msgEl) {
+			// Find all errors in this URL that match the duplicate error
+			var errors = urlSection.querySelectorAll('.error')
+			errors.forEach(function(msgEl) {
 				var msgText = extractMessageText(msgEl)
 				if (msgText === dupMsg.text) {
 					// Add a special class to mark as duplicate
@@ -2079,14 +2079,14 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	}
 	
 	var mainHeading = createHtmlElement('h3')
-	mainHeading.textContent = 'Shared Messages Across URLs'
+	mainHeading.textContent = 'Shared Errors Across URLs'
 	mainHeading.style.marginTop = '0'
 	mainHeading.style.color = '#e65100'
 	duplicateSection.appendChild(mainHeading)
 	
-	// Section 1: Common Messages (in ALL URLs)
-	var hasCommonMessages = duplicateMessages.common.errors.length > 0 || duplicateMessages.common.warnings.length > 0
-	if (hasCommonMessages) {
+	// Section 1: Common Errors (in ALL URLs) - Only show errors, not warnings
+	var hasCommonErrors = duplicateMessages.common.errors.length > 0
+	if (hasCommonErrors) {
 		var commonSection = createHtmlElement('div')
 		commonSection.style.padding = '15px'
 		commonSection.style.marginBottom = '20px'
@@ -2095,57 +2095,32 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		commonSection.style.backgroundColor = '#ffebee'
 		
 		var commonHeading = createHtmlElement('h4')
-		commonHeading.textContent = '🔴 Messages in All URLs (' + allResults.urls.length + '/' + allResults.urls.length + ' URLs)'
+		commonHeading.textContent = '🔴 Errors in All URLs (' + allResults.urls.length + '/' + allResults.urls.length + ' URLs)'
 		commonHeading.style.marginTop = '0'
 		commonHeading.style.color = '#b71c1c'
 		commonSection.appendChild(commonHeading)
 		
 		var commonDescription = createHtmlElement('p')
-		commonDescription.textContent = 'These messages appear in ALL ' + allResults.urls.length + ' validated URLs. Fix these first for maximum impact across all pages.'
+		commonDescription.textContent = 'These errors appear in ALL ' + allResults.urls.length + ' validated URLs. Fix these first for maximum impact across all pages.'
 		commonDescription.style.fontStyle = 'italic'
 		commonDescription.style.marginBottom = '15px'
 		commonSection.appendChild(commonDescription)
 		
-		// Display common errors
-		if (duplicateMessages.common.errors.length > 0) {
-			var commonErrorsHeading = createHtmlElement('h5')
-			commonErrorsHeading.textContent = 'Errors (' + duplicateMessages.common.errors.length + ')'
-			commonErrorsHeading.style.color = '#c00'
-			commonErrorsHeading.style.marginTop = '10px'
-			commonSection.appendChild(commonErrorsHeading)
-			
-			var commonErrorsList = createHtmlElement('ol')
-			commonErrorsList.className = 'common-messages-list'
-			duplicateMessages.common.errors.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-				commonErrorsList.appendChild(listItem)
-			})
-			commonSection.appendChild(commonErrorsList)
-		}
-		
-		// Display common warnings
-		if (duplicateMessages.common.warnings.length > 0) {
-			var commonWarningsHeading = createHtmlElement('h5')
-			commonWarningsHeading.textContent = 'Warnings (' + duplicateMessages.common.warnings.length + ')'
-			commonWarningsHeading.style.color = '#f90'
-			commonWarningsHeading.style.marginTop = '15px'
-			commonSection.appendChild(commonWarningsHeading)
-			
-			var commonWarningsList = createHtmlElement('ol')
-			commonWarningsList.className = 'common-messages-list'
-			duplicateMessages.common.warnings.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'warning')
-				commonWarningsList.appendChild(listItem)
-			})
-			commonSection.appendChild(commonWarningsList)
-		}
+		// Display common errors only
+		var commonErrorsList = createHtmlElement('ol')
+		commonErrorsList.className = 'common-messages-list'
+		duplicateMessages.common.errors.forEach(function(dupMsg) {
+			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+			commonErrorsList.appendChild(listItem)
+		})
+		commonSection.appendChild(commonErrorsList)
 		
 		duplicateSection.appendChild(commonSection)
 	}
 	
-	// Section 2: Partial Messages (in 2+ URLs but not all)
-	var hasPartialMessages = duplicateMessages.duplicate.errors.length > 0 || duplicateMessages.duplicate.warnings.length > 0
-	if (hasPartialMessages) {
+	// Section 2: Partial Errors (in 2+ URLs but not all) - Only show errors, not warnings
+	var hasPartialErrors = duplicateMessages.duplicate.errors.length > 0
+	if (hasPartialErrors) {
 		var partialDuplicateSection = createHtmlElement('div')
 		partialDuplicateSection.style.padding = '15px'
 		partialDuplicateSection.style.border = '2px solid #ff9800'
@@ -2153,64 +2128,39 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		partialDuplicateSection.style.backgroundColor = '#fff3e0'
 		
 		var partialHeading = createHtmlElement('h4')
-		partialHeading.textContent = '🟠 Messages in Some URLs (2+ but not all)'
+		partialHeading.textContent = '🟠 Errors in Some URLs (2+ but not all)'
 		partialHeading.style.marginTop = '0'
 		partialHeading.style.color = '#e65100'
 		partialDuplicateSection.appendChild(partialHeading)
 		
 		var partialDescription = createHtmlElement('p')
-		partialDescription.textContent = 'These messages appear in 2 or more URLs, but not in all of them. Click on each message to see which specific URLs contain it.'
+		partialDescription.textContent = 'These errors appear in 2 or more URLs, but not in all of them. Click on each error to see which specific URLs contain it.'
 		partialDescription.style.fontStyle = 'italic'
 		partialDescription.style.marginBottom = '15px'
 		partialDuplicateSection.appendChild(partialDescription)
 		
-		// Display partial errors
-		if (duplicateMessages.duplicate.errors.length > 0) {
-			var errorsHeading = createHtmlElement('h5')
-			errorsHeading.textContent = 'Errors (' + duplicateMessages.duplicate.errors.length + ')'
-			errorsHeading.style.color = '#c00'
-			errorsHeading.style.marginTop = '10px'
-			partialDuplicateSection.appendChild(errorsHeading)
-			
-			var errorsList = createHtmlElement('ol')
-			errorsList.className = 'duplicate-messages-list'
-			duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-				errorsList.appendChild(listItem)
-			})
-			partialDuplicateSection.appendChild(errorsList)
-		}
-		
-		// Display partial warnings
-		if (duplicateMessages.duplicate.warnings.length > 0) {
-			var warningsHeading = createHtmlElement('h5')
-			warningsHeading.textContent = 'Warnings (' + duplicateMessages.duplicate.warnings.length + ')'
-			warningsHeading.style.color = '#f90'
-			warningsHeading.style.marginTop = '15px'
-			partialDuplicateSection.appendChild(warningsHeading)
-			
-			var warningsList = createHtmlElement('ol')
-			warningsList.className = 'duplicate-messages-list'
-			duplicateMessages.duplicate.warnings.forEach(function(dupMsg) {
-				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'warning')
-				warningsList.appendChild(listItem)
-			})
-			partialDuplicateSection.appendChild(warningsList)
-		}
+		// Display partial errors only
+		var errorsList = createHtmlElement('ol')
+		errorsList.className = 'duplicate-messages-list'
+		duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
+			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+			errorsList.appendChild(listItem)
+		})
+		partialDuplicateSection.appendChild(errorsList)
 		
 		duplicateSection.appendChild(partialDuplicateSection)
 	}
 	
-	// If no shared messages at all
-	if (!hasCommonMessages && !hasPartialMessages) {
-		var noSharedMessages = createHtmlElement('p')
-		noSharedMessages.textContent = '✅ No shared messages found across the validated URLs. Each URL has unique messages only.'
-		noSharedMessages.style.fontStyle = 'italic'
-		noSharedMessages.style.padding = '15px'
-		noSharedMessages.style.border = '2px solid #4caf50'
-		noSharedMessages.style.borderRadius = '5px'
-		noSharedMessages.style.backgroundColor = '#e8f5e9'
-		duplicateSection.appendChild(noSharedMessages)
+	// If no shared errors at all
+	if (!hasCommonErrors && !hasPartialErrors) {
+		var noSharedErrors = createHtmlElement('p')
+		noSharedErrors.textContent = '✅ No shared errors found across the validated URLs. Each URL has unique errors only.'
+		noSharedErrors.style.fontStyle = 'italic'
+		noSharedErrors.style.padding = '15px'
+		noSharedErrors.style.border = '2px solid #4caf50'
+		noSharedErrors.style.borderRadius = '5px'
+		noSharedErrors.style.backgroundColor = '#e8f5e9'
+		duplicateSection.appendChild(noSharedErrors)
 	}
 	
 	// Add event listener to checkbox in form to toggle duplicate section and messages
