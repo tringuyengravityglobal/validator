@@ -2078,8 +2078,11 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		duplicateSection.style.display = 'none'
 	}
 	
+	// Calculate total shared errors
+	var totalSharedErrors = duplicateMessages.common.errors.length + duplicateMessages.duplicate.errors.length
+	
 	var mainHeading = createHtmlElement('h3')
-	mainHeading.textContent = 'Shared Errors Across URLs'
+	mainHeading.textContent = 'Shared Errors Across URLs (' + totalSharedErrors + ' errors)'
 	mainHeading.style.marginTop = '0'
 	mainHeading.style.color = '#e65100'
 	duplicateSection.appendChild(mainHeading)
@@ -2095,7 +2098,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		commonSection.style.backgroundColor = '#ffebee'
 		
 		var commonHeading = createHtmlElement('h4')
-		commonHeading.textContent = '🔴 Errors in All URLs (' + allResults.urls.length + '/' + allResults.urls.length + ' URLs)'
+		commonHeading.textContent = '🔴 Errors in All URLs (' + duplicateMessages.common.errors.length + ' errors)'
 		commonHeading.style.marginTop = '0'
 		commonHeading.style.color = '#b71c1c'
 		commonSection.appendChild(commonHeading)
@@ -2128,7 +2131,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		partialDuplicateSection.style.backgroundColor = '#fff3e0'
 		
 		var partialHeading = createHtmlElement('h4')
-		partialHeading.textContent = '🟠 Errors in Some URLs (2+ but not all)'
+		partialHeading.textContent = '🟠 Errors in Some URLs (' + duplicateMessages.duplicate.errors.length + ' errors)'
 		partialHeading.style.marginTop = '0'
 		partialHeading.style.color = '#e65100'
 		partialDuplicateSection.appendChild(partialHeading)
