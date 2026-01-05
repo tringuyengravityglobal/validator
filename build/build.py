@@ -1284,6 +1284,7 @@ class Release():
             'nu.validator.messages.test.MessageEmitterAdapterTest',
             'nu.validator.collections.test.SortedSetTest',
             'nu.validator.io.test.DataUriTest',
+            'nu.validator.io.test.SystemIdIOExceptionTest',
             'nu.validator.checker.test.SpeculationRulesCheckerTest',
             'nu.validator.checker.test.CspEnforcementCheckerTest',
             'nu.validator.checker.test.AttributeUtilTest',
@@ -1345,7 +1346,7 @@ class Release():
         cssTestArgs.append(os.path.join(buildRoot, "tests", "css"))
         execCmd(vnuCmd, cssTestArgs, True)
         docbookTestArgs = ["--schema",
-                           "https://docbook.org/xml/5.1/rng/docbook.rng",
+                           "file:resources/docbook.rng",
                            "--xml"]
         # Test valid DocBook document; expect no output/messages/errors
         testdoc = [os.path.join("tests", "schema-validation",

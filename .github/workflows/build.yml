@@ -101,27 +101,22 @@ jobs:
         shell: bash
         run: |
           python checker.py sign
-      - name: Release new binary runtime image
+      - name: Upload release artifacts (zip files)
         if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
-        uses: ncipollo/release-action@v1
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit: ${{ github.sha }}
-          allowUpdates: true
-          artifacts: build/dist/*.zip*
-          bodyFile: "IMPORTANT.md"
-          omitName: true
-          tag: latest
-      - name: Release new jar and war
+          name: release-zips-${{ matrix.os }}
+          path: build/dist/*.zip*
+          retention-days: 1
+      - name: Upload release artifacts (jar and war)
         if: ${{ env.IS_MAIN_RELEASE_BUILDER == 'true' }}
-        uses: ncipollo/release-action@v1
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          artifacts: build/dist/*.jar*,build/dist-war/*.war*
-          omitBodyDuringUpdate: true
-          omitName: true
-          tag: latest
+          name: release-jars
+          path: |
+            build/dist/*.jar*
+            build/dist-war/*.war*
+          retention-days: 1
       - name: Update the 'latest' tag
         if: ${{ env.IS_MAIN_RELEASE_BUILDER == 'true' }}
         run: |
@@ -129,13 +124,40 @@ jobs:
           git tag -m latest -fa latest || true
           git push origin main --tags
 
-  verify-release-assets:
-    name: Verify release assets
+  release-assets:
+    name: Upload release assets
     needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
-      - name: Verify release assets and release state (not Draft/Pre-release)
+      - uses: actions/checkout@v6
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+      - name: List downloaded artifacts
+        run: find artifacts -type f | sort
+      - name: Upload all assets to release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit: ${{ github.sha }}
+          allowUpdates: true
+          artifacts: artifacts/*
+          bodyFile: "IMPORTANT.md"
+          omitName: true
+          tag: latest
+          draft: false
+
+  verify-release-assets:
+    name: Verify release assets
+    needs: release-assets
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    steps:
+      - name: Verify release assets and ensure release is published
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_ASSETS: |
@@ -146,40 +168,70 @@ jobs:
             vnu.windows.zip
         run: |
           set -euxo pipefail
-          echo 'Fetching release metadata for tag “latest”…'
-          release_json=$(gh api repos/${{ github.repository }}/releases/tags/latest)
-          asset_names=$(echo "$release_json" | jq -r '.assets[].name')
-          echo "Assets found in release:"
-          echo "$asset_names"
-          missing=0
-          for expected in $EXPECTED_ASSETS; do
-            if ! echo "$asset_names" | grep -qx "$expected"; then
-              echo "::error::Missing expected asset: $expected"
-              missing=1
+          verify_release() {
+            echo 'Fetching release metadata for tag “latest”…'
+            release_json=$(gh api repos/${{ github.repository }}/releases/tags/latest)
+            asset_names=$(echo "$release_json" | jq -r '.assets[].name')
+            echo "Assets found in release:"
+            echo "$asset_names"
+            missing=0
+            for expected in $EXPECTED_ASSETS; do
+              if ! echo "$asset_names" | grep -qx "$expected"; then
+                echo "::error::Missing expected asset: $expected"
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              echo "::error::One or more expected release assets are missing!"
+              return 1
             fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::One or more expected release assets are missing!"
-            exit 1
-          fi
-          echo "✅ All expected release assets are present."
-          echo "Verifying that release assets are downloadable..."
-          for asset_url in $(echo "$release_json" | jq -r '.assets[].browser_download_url'); do
-            if ! curl -fL --head --silent --max-time 20 "$asset_url" >/dev/null; then
-              echo "::error::Asset not downloadable: $asset_url"
-              exit 1
+            echo "✅ All expected release assets are present."
+            echo "Verifying that release assets are downloadable..."
+            for asset_url in $(echo "$release_json" | jq -r '.assets[].browser_download_url'); do
+              if ! curl -fL --head --silent --max-time 20 "$asset_url" >/dev/null; then
+                echo "::error::Asset not downloadable: $asset_url"
+                return 1
+              fi
+            done
+            echo "✅ All release assets are downloadable."
+            if [ "$(echo "$release_json" | jq -r '.draft')" = "true" ]; then
+              echo "::error::Release is in Draft state!"
+              return 1
             fi
+            echo "✅ Release is not in Draft state."
+            if [ "$(echo "$release_json" | jq -r '.prerelease')" = "true" ]; then
+              echo "::error::Release is marked as a Pre-release!"
+              return 1
+            fi
+            echo "✅ Release is not marked as a Pre-release."
+            return 0
+          }
+          max_attempts=5
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Verification attempt $attempt of $max_attempts..."
+            if verify_release; then
+              echo "✅ All release checks passed."
+              exit 0
+            fi
+
+            # Check if the failure was due to draft state — if so, publish it
+            release_json=$(gh api repos/${{ github.repository }}/releases/tags/latest)
+            if [ "$(echo "$release_json" | jq -r '.draft')" = "true" ]; then
+              echo "⚠️ Release is in Draft state (likely due to race conditions) — publishing it now..."
+              gh release edit latest --draft=false
+              echo "✅ Release has been published."
+            fi
+
+            if [ $attempt -lt $max_attempts ]; then
+              echo "⚠️ Verification failed, waiting 30 seconds before retry..."
+              sleep 30
+            fi
+            attempt=$((attempt + 1))
           done
-          echo "✅ All release assets are downloadable."
-          if [ "$(echo "$release_json" | jq -r '.draft')" = "true" ]; then
-            echo "::error::Release is still in the Draft state!"
-            exit 1
-          fi
-          if [ "$(echo "$release_json" | jq -r '.prerelease')" = "true" ]; then
-            echo "::error::Release is marked as a Pre-release!"
-            exit 1
-          fi
-          echo "✅ Release is not in the Draft or Pre-release state."
+
+          echo "::error::Release verification failed after $max_attempts attempts!"
+          exit 1
 
   npm-release:
     name: Release new npm package
@@ -346,7 +398,17 @@ jobs:
         if: steps.check_version.outputs.exists == 'false'
         shell: bash
         run: |
-          python checker.py maven-release
+          max_attempts=3
+          attempt=1
+          until python checker.py maven-release; do
+            if [ $attempt -ge $max_attempts ]; then
+              echo "::error::Maven release failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "⚠️ Attempt $attempt failed, retrying in 30 seconds..."
+            sleep 30
+            attempt=$((attempt + 1))
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAVEN_USER_TOKEN: ${{ secrets.MAVEN_USER_TOKEN }}
