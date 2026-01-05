@@ -1682,11 +1682,12 @@ function findDuplicateMessages(allResults) {
 	for (var msgText in messageMap.errors) {
 		if (messageMap.errors.hasOwnProperty(msgText)) {
 			var msg = messageMap.errors[msgText]
+			// Remove duplicates from urlIndices FIRST
+			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+				return self.indexOf(value) === index
+			})
+			// Then check if it appears in 2+ URLs
 			if (msg.urlIndices.length >= 2) {
-				// Remove duplicates from urlIndices
-				msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
-					return self.indexOf(value) === index
-				})
 				duplicateErrors.push(msg)
 			}
 		}
@@ -1695,11 +1696,12 @@ function findDuplicateMessages(allResults) {
 	for (var msgText in messageMap.warnings) {
 		if (messageMap.warnings.hasOwnProperty(msgText)) {
 			var msg = messageMap.warnings[msgText]
+			// Remove duplicates from urlIndices FIRST
+			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+				return self.indexOf(value) === index
+			})
+			// Then check if it appears in 2+ URLs
 			if (msg.urlIndices.length >= 2) {
-				// Remove duplicates from urlIndices
-				msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
-					return self.indexOf(value) === index
-				})
 				duplicateWarnings.push(msg)
 			}
 		}
