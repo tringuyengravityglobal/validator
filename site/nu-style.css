@@ -248,13 +248,18 @@ textarea {
 	margin-left: 2px;
 }
 
-#doc {
+#doc,
+#cookie-input {
 	width: 95.5%;
 	margin-left: 2px;
-	margin-top: 2px;
+	margin-top: 6px;
 	padding: 3px 5px 2px 5px;
 	border-radius: 6px;
 	border: solid #ccc 1px;
+}
+
+label:has(#enable-cookie) {
+	cursor: pointer;
 }
 
 #doc[type="file"] {

@@ -178,6 +178,10 @@ function initFieldHolders() {
 		.addEventListener('click', function (e) {
 			toggleExtraOptions()
 		}, false)
+
+	// Initialize cookie input functionality
+	initCookieInput()
+
 	if (location.hash == '#file') {
 		installFileUpload()
 		location.hash = '#file'
@@ -228,6 +232,79 @@ function toggleExtraOptions() {
 		extraoptions_useragent.removeAttribute("disabled")
 		extraoptions_acceptlanguage.removeAttribute("disabled")
 	}
+}
+
+function initCookieInput() {
+	var form = document.forms[0]
+	if (!form) return
+
+	// Create cookie checkbox
+	var cookieCheckbox = createHtmlElement('input')
+	cookieCheckbox.type = 'checkbox'
+	cookieCheckbox.id = 'enable-cookie'
+	cookieCheckbox.name = 'enable-cookie'
+
+	// Create cookie textarea
+	var cookieTextarea = createHtmlElement('textarea')
+	cookieTextarea.id = 'cookie-input'
+	cookieTextarea.name = 'cookie'
+	cookieTextarea.rows = 3
+	cookieTextarea.cols = 72
+	cookieTextarea.placeholder = 'Enter cookies here (e.g., session_id=abc123; auth_token=xyz789)'
+	cookieTextarea.style.display = 'none'
+
+	// Create label
+	var cookieLabel = createHtmlElement('label')
+	cookieLabel.setAttribute('for', 'enable-cookie')
+	cookieLabel.appendChild(cookieCheckbox)
+	cookieLabel.appendChild(document.createTextNode(' Enable Custom Cookies (for authenticated sites)'))
+
+	// Create container
+	var cookieContainer = createHtmlElement('div')
+	cookieContainer.id = 'cookie-container'
+	cookieContainer.style.marginTop = '10px'
+	cookieContainer.style.marginBottom = '10px'
+	cookieContainer.appendChild(cookieLabel)
+	cookieContainer.appendChild(cookieTextarea)
+
+	// Move the cookie UI to be placed before the inputregion (before id inputregion)
+	var inputRegionElement = document.getElementById('inputregion')
+	if (inputRegionElement && inputRegionElement.parentNode) {
+		inputRegionElement.parentNode.insertBefore(cookieContainer, inputRegionElement)
+	}
+
+	// Load saved cookie from localStorage
+	if (supportsLocalStorage() && localStorage['customCookie']) {
+		cookieTextarea.value = localStorage['customCookie']
+	}
+
+	// Load saved checkbox state
+	if (supportsLocalStorage() && localStorage['enableCookie'] === 'yes') {
+		cookieCheckbox.checked = true
+		cookieTextarea.style.display = 'block'
+	}
+
+	// Toggle textarea visibility when checkbox changes
+	cookieCheckbox.addEventListener('change', function(e) {
+		if (e.target.checked) {
+			cookieTextarea.style.display = 'block'
+			if (supportsLocalStorage()) {
+				localStorage['enableCookie'] = 'yes'
+			}
+		} else {
+			cookieTextarea.style.display = 'none'
+			if (supportsLocalStorage()) {
+				localStorage['enableCookie'] = 'no'
+			}
+		}
+	}, false)
+
+	// Save cookie value to localStorage when changed
+	cookieTextarea.addEventListener('input', function(e) {
+		if (supportsLocalStorage()) {
+			localStorage['customCookie'] = e.target.value
+		}
+	}, false)
 }
 
 function initWarningsOnly() {
@@ -1331,7 +1408,14 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 	var xhr = new XMLHttpRequest()
 	var requestUrl = window.location.pathname + '?' + formData.toString()
 	xhr.open('GET', requestUrl, true)
-	
+
+	// Add custom cookie header if enabled
+	var cookieCheckbox = document.getElementById('enable-cookie')
+	var cookieTextarea = document.getElementById('cookie-input')
+	if (cookieCheckbox && cookieCheckbox.checked && cookieTextarea && cookieTextarea.value.trim()) {
+		xhr.setRequestHeader('X-Custom-Cookie', cookieTextarea.value.trim())
+	}
+
 	xhr.onload = function() {
 		if (xhr.status >= 200 && xhr.status < 400) {
 			// Parse response HTML
