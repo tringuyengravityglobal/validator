@@ -1963,8 +1963,6 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		duplicateSection.appendChild(noduplicates)
 	}
 	
-	resultsDiv.appendChild(duplicateSection)
-	
 	// Add event listener to checkbox in form to toggle duplicate section and messages
 	if (duplicateCheckbox) {
 		duplicateCheckbox.addEventListener('change', function(e) {
@@ -2094,6 +2092,9 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	})
 	
 	resultsDiv.appendChild(urlResultsContainer)
+	
+	// Append duplicate section after multi-url-results
+	resultsDiv.appendChild(duplicateSection)
 	
 	// If checkbox is checked initially, hide duplicates in individual URL results
 	// This must happen AFTER urlResultsContainer is appended to DOM
