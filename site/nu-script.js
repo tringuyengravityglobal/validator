@@ -2063,131 +2063,137 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	var duplicateCheckbox = document.getElementById('showduplicates')
 	var showDuplicatesSection = duplicateCheckbox ? duplicateCheckbox.checked : false
 	
-	// Detect duplicate errors/warnings across URLs
-	var duplicateMessages = findDuplicateMessages(allResults)
+	// Only create duplicate section if there are 2 or more URLs
+	var duplicateSection = null
+	var duplicateMessages = null
 	
-	// Create duplicate section container
-	var duplicateSection = createHtmlElement('div')
-	duplicateSection.id = 'duplicate-messages-section'
-	duplicateSection.className = 'error'
-	duplicateSection.style.marginTop = '20px'
-	duplicateSection.style.marginBottom = '30px'
-	
-	// Initially hide if checkbox is not checked
-	if (!showDuplicatesSection) {
-		duplicateSection.style.display = 'none'
-	}
-	
-	// Calculate total shared errors
-	var totalSharedErrors = duplicateMessages.common.errors.length + duplicateMessages.duplicate.errors.length
-	
-	var mainHeading = createHtmlElement('h3')
-	mainHeading.textContent = 'Shared Errors Across URLs (' + totalSharedErrors + ' errors)'
-	mainHeading.style.marginTop = '0'
-	mainHeading.style.color = '#e65100'
-	duplicateSection.appendChild(mainHeading)
-	
-	// Section 1: Common Errors (in ALL URLs) - Only show errors, not warnings
-	var hasCommonErrors = duplicateMessages.common.errors.length > 0
-	if (hasCommonErrors) {
-		var commonSection = createHtmlElement('div')
-		commonSection.style.padding = '15px'
-		commonSection.style.marginBottom = '20px'
-		commonSection.style.border = '2px solid #d32f2f'
-		commonSection.style.borderRadius = '5px'
-		commonSection.style.backgroundColor = '#ffebee'
+	if (allResults.urls.length >= 2) {
+		// Detect duplicate errors/warnings across URLs
+		duplicateMessages = findDuplicateMessages(allResults)
 		
-		var commonHeading = createHtmlElement('h4')
-		commonHeading.textContent = '🔴 Errors in All URLs (' + duplicateMessages.common.errors.length + ' errors)'
-		commonHeading.style.marginTop = '0'
-		commonHeading.style.color = '#b71c1c'
-		commonSection.appendChild(commonHeading)
+		// Create duplicate section container
+		duplicateSection = createHtmlElement('div')
+		duplicateSection.id = 'duplicate-messages-section'
+		duplicateSection.className = 'error'
+		duplicateSection.style.marginTop = '20px'
+		duplicateSection.style.marginBottom = '30px'
 		
-		var commonDescription = createHtmlElement('p')
-		commonDescription.textContent = 'These errors appear in ALL ' + allResults.urls.length + ' validated URLs. Fix these first for maximum impact across all pages.'
-		commonDescription.style.fontStyle = 'italic'
-		commonDescription.style.marginBottom = '15px'
-		commonSection.appendChild(commonDescription)
+		// Initially hide if checkbox is not checked
+		if (!showDuplicatesSection) {
+			duplicateSection.style.display = 'none'
+		}
 		
-		// Display common errors only
-		var commonErrorsList = createHtmlElement('ol')
-		commonErrorsList.className = 'common-messages-list'
-		duplicateMessages.common.errors.forEach(function(dupMsg) {
-			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-			commonErrorsList.appendChild(listItem)
-		})
-		commonSection.appendChild(commonErrorsList)
+		// Calculate total shared errors
+		var totalSharedErrors = duplicateMessages.common.errors.length + duplicateMessages.duplicate.errors.length
 		
-		duplicateSection.appendChild(commonSection)
-	}
-	
-	// Section 2: Partial Errors (in 2+ URLs but not all) - Only show errors, not warnings
-	var hasPartialErrors = duplicateMessages.duplicate.errors.length > 0
-	if (hasPartialErrors) {
-		var partialDuplicateSection = createHtmlElement('div')
-		partialDuplicateSection.style.padding = '15px'
-		partialDuplicateSection.style.border = '2px solid #ff9800'
-		partialDuplicateSection.style.borderRadius = '5px'
-		partialDuplicateSection.style.backgroundColor = '#fff3e0'
+		var mainHeading = createHtmlElement('h3')
+		mainHeading.textContent = 'Shared Errors Across URLs (' + totalSharedErrors + ' errors)'
+		mainHeading.style.marginTop = '0'
+		mainHeading.style.color = '#e65100'
+		duplicateSection.appendChild(mainHeading)
 		
-		var partialHeading = createHtmlElement('h4')
-		partialHeading.textContent = '🟠 Errors in Some URLs (' + duplicateMessages.duplicate.errors.length + ' errors)'
-		partialHeading.style.marginTop = '0'
-		partialHeading.style.color = '#e65100'
-		partialDuplicateSection.appendChild(partialHeading)
+		// Section 1: Common Errors (in ALL URLs) - Only show errors, not warnings
+		var hasCommonErrors = duplicateMessages.common.errors.length > 0
+		if (hasCommonErrors) {
+			var commonSection = createHtmlElement('div')
+			commonSection.style.padding = '15px'
+			commonSection.style.marginBottom = '20px'
+			commonSection.style.border = '2px solid #d32f2f'
+			commonSection.style.borderRadius = '5px'
+			commonSection.style.backgroundColor = '#ffebee'
+			
+			var commonHeading = createHtmlElement('h4')
+			commonHeading.textContent = '🔴 Errors in All URLs (' + duplicateMessages.common.errors.length + ' errors)'
+			commonHeading.style.marginTop = '0'
+			commonHeading.style.color = '#b71c1c'
+			commonSection.appendChild(commonHeading)
+			
+			var commonDescription = createHtmlElement('p')
+			commonDescription.textContent = 'These errors appear in ALL ' + allResults.urls.length + ' validated URLs. Fix these first for maximum impact across all pages.'
+			commonDescription.style.fontStyle = 'italic'
+			commonDescription.style.marginBottom = '15px'
+			commonSection.appendChild(commonDescription)
+			
+			// Display common errors only
+			var commonErrorsList = createHtmlElement('ol')
+			commonErrorsList.className = 'common-messages-list'
+			duplicateMessages.common.errors.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+				commonErrorsList.appendChild(listItem)
+			})
+			commonSection.appendChild(commonErrorsList)
+			
+			duplicateSection.appendChild(commonSection)
+		}
 		
-		var partialDescription = createHtmlElement('p')
-		partialDescription.textContent = 'These errors appear in 2 or more URLs, but not in all of them. Click on each error to see which specific URLs contain it.'
-		partialDescription.style.fontStyle = 'italic'
-		partialDescription.style.marginBottom = '15px'
-		partialDuplicateSection.appendChild(partialDescription)
+		// Section 2: Partial Errors (in 2+ URLs but not all) - Only show errors, not warnings
+		var hasPartialErrors = duplicateMessages.duplicate.errors.length > 0
+		if (hasPartialErrors) {
+			var partialDuplicateSection = createHtmlElement('div')
+			partialDuplicateSection.style.padding = '15px'
+			partialDuplicateSection.style.border = '2px solid #ff9800'
+			partialDuplicateSection.style.borderRadius = '5px'
+			partialDuplicateSection.style.backgroundColor = '#fff3e0'
+			
+			var partialHeading = createHtmlElement('h4')
+			partialHeading.textContent = '🟠 Errors in Some URLs (' + duplicateMessages.duplicate.errors.length + ' errors)'
+			partialHeading.style.marginTop = '0'
+			partialHeading.style.color = '#e65100'
+			partialDuplicateSection.appendChild(partialHeading)
+			
+			var partialDescription = createHtmlElement('p')
+			partialDescription.textContent = 'These errors appear in 2 or more URLs, but not in all of them. Click on each error to see which specific URLs contain it.'
+			partialDescription.style.fontStyle = 'italic'
+			partialDescription.style.marginBottom = '15px'
+			partialDuplicateSection.appendChild(partialDescription)
+			
+			// Display partial errors only
+			var errorsList = createHtmlElement('ol')
+			errorsList.className = 'duplicate-messages-list'
+			duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
+				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
+				errorsList.appendChild(listItem)
+			})
+			partialDuplicateSection.appendChild(errorsList)
+			
+			duplicateSection.appendChild(partialDuplicateSection)
+		}
 		
-		// Display partial errors only
-		var errorsList = createHtmlElement('ol')
-		errorsList.className = 'duplicate-messages-list'
-		duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
-			var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
-			errorsList.appendChild(listItem)
-		})
-		partialDuplicateSection.appendChild(errorsList)
+		// If no shared errors at all
+		if (!hasCommonErrors && !hasPartialErrors) {
+			var noSharedErrors = createHtmlElement('p')
+			noSharedErrors.textContent = '✅ No shared errors found across the validated URLs. Each URL has unique errors only.'
+			noSharedErrors.style.fontStyle = 'italic'
+			noSharedErrors.style.padding = '15px'
+			noSharedErrors.style.border = '2px solid #4caf50'
+			noSharedErrors.style.borderRadius = '5px'
+			noSharedErrors.style.backgroundColor = '#e8f5e9'
+			duplicateSection.appendChild(noSharedErrors)
+		}
 		
-		duplicateSection.appendChild(partialDuplicateSection)
-	}
-	
-	// If no shared errors at all
-	if (!hasCommonErrors && !hasPartialErrors) {
-		var noSharedErrors = createHtmlElement('p')
-		noSharedErrors.textContent = '✅ No shared errors found across the validated URLs. Each URL has unique errors only.'
-		noSharedErrors.style.fontStyle = 'italic'
-		noSharedErrors.style.padding = '15px'
-		noSharedErrors.style.border = '2px solid #4caf50'
-		noSharedErrors.style.borderRadius = '5px'
-		noSharedErrors.style.backgroundColor = '#e8f5e9'
-		duplicateSection.appendChild(noSharedErrors)
-	}
-	
-	// Add event listener to checkbox in form to toggle duplicate section and messages
-	if (duplicateCheckbox) {
-		duplicateCheckbox.addEventListener('change', function(e) {
-			if (e.target.checked) {
-				duplicateSection.style.display = 'block'
-				// Hide duplicate messages in individual URL results
-				hideDuplicateMessagesInUrls(duplicateMessages, allResults)
-				if (supportsLocalStorage()) {
-					localStorage['showDuplicates'] = 'yes'
+		// Add event listener to checkbox in form to toggle duplicate section and messages
+		if (duplicateCheckbox) {
+			duplicateCheckbox.addEventListener('change', function(e) {
+				if (e.target.checked) {
+					duplicateSection.style.display = 'block'
+					// Hide duplicate messages in individual URL results
+					hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+					if (supportsLocalStorage()) {
+						localStorage['showDuplicates'] = 'yes'
+					}
+				} else {
+					duplicateSection.style.display = 'none'
+					// Show all messages in individual URL results
+					showAllMessagesInUrls(duplicateMessages, allResults)
+					if (supportsLocalStorage()) {
+						localStorage['showDuplicates'] = 'no'
+					}
 				}
-			} else {
-				duplicateSection.style.display = 'none'
-				// Show all messages in individual URL results
-				showAllMessagesInUrls(duplicateMessages, allResults)
-				if (supportsLocalStorage()) {
-					localStorage['showDuplicates'] = 'no'
-				}
-			}
-			// Update counts after toggling
-			showCount()
-		}, false)
-	}
+				// Update counts after toggling
+				showCount()
+			}, false)
+		}
+	} // End of if (allResults.urls.length >= 2)
 	
 	// Create container for all URL results
 	var urlResultsContainer = createHtmlElement('div')
@@ -2296,13 +2302,15 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	
 	resultsDiv.appendChild(urlResultsContainer)
 	
-	// Append duplicate section after multi-url-results
-	resultsDiv.appendChild(duplicateSection)
-	
-	// If checkbox is checked initially, hide duplicates in individual URL results
-	// This must happen AFTER urlResultsContainer is appended to DOM
-	if (showDuplicatesSection) {
-		hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+	// Append duplicate section after multi-url-results (only if it exists, i.e., >= 2 URLs)
+	if (duplicateSection) {
+		resultsDiv.appendChild(duplicateSection)
+		
+		// If checkbox is checked initially, hide duplicates in individual URL results
+		// This must happen AFTER urlResultsContainer is appended to DOM
+		if (showDuplicatesSection && duplicateMessages) {
+			hideDuplicateMessagesInUrls(duplicateMessages, allResults)
+		}
 	}
 	
 	// Re-initialize filters and other UI enhancements
