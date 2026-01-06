@@ -45,7 +45,7 @@ var linePattern = /^#l-?[0-9]+$/
 var rangePattern = /^#l-?[0-9]+c[0-9]+$/
 var exactPattern = /^#cl-?[0-9]+c[0-9]+$/
 var htmlBoilerplate = '<!DOCTYPE html>\n<html lang="">\n<head>\n'
-  + '<title>Test</title>\n</head>\n<body>\n<p></p>\n</body>\n</html>'
+	+ '<title>Test</title>\n</head>\n<body>\n<p></p>\n</body>\n</html>'
 
 function boot() {
 	installHandlers()
@@ -109,18 +109,18 @@ function initFieldHolders() {
 		fileInput.id = 'doc'
 		fileInput.name = 'file'
 		fileInput.setAttribute('aria-labelledby', 'docselect')
-		fileInput.setAttribute('required','')
-		fileInput.setAttribute('autofocus','')
-		fileInput.setAttribute('tabindex','0')
+		fileInput.setAttribute('required', '')
+		fileInput.setAttribute('autofocus', '')
+		fileInput.setAttribute('tabindex', '0')
 	}
 	multiUrlInput = createHtmlElement('textarea')
 	if (multiUrlInput) {
 		multiUrlInput.id = 'doc'
 		multiUrlInput.name = 'doc'
 		multiUrlInput.setAttribute('aria-labelledby', 'docselect')
-		multiUrlInput.setAttribute('required','')
-		multiUrlInput.setAttribute('autofocus','')
-		multiUrlInput.setAttribute('tabindex','0')
+		multiUrlInput.setAttribute('required', '')
+		multiUrlInput.setAttribute('autofocus', '')
+		multiUrlInput.setAttribute('tabindex', '0')
 		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)')
 		multiUrlInput.cols = 72
 		multiUrlInput.rows = 10
@@ -146,7 +146,7 @@ function initFieldHolders() {
 	modeSelect.appendChild(createOption('multi URLs', 'multiurl'))
 	modeSelect.appendChild(createOption('file upload', 'file'))
 	modeSelect.appendChild(createOption('text input', 'textarea'))
-	modeSelect.onchange = function() {
+	modeSelect.onchange = function () {
 		if (this.value == 'file') {
 			installFileUpload()
 			location.hash = '#file'
@@ -171,10 +171,10 @@ function initFieldHolders() {
 		modeSelect.value = 'file'
 	} else
 		if (urlInput.className == 'textarea' || disabledAddressType) {
-		installTextarea()
-		location.hash = '#textarea'
-		modeSelect.value = 'textarea'
-	}
+			installTextarea()
+			location.hash = '#textarea'
+			modeSelect.value = 'textarea'
+		}
 	document.querySelector('#show_options')
 		.addEventListener('click', function (e) {
 			toggleExtraOptions()
@@ -286,7 +286,7 @@ function initCookieInput() {
 	}
 
 	// Toggle textarea visibility when checkbox changes
-	cookieCheckbox.addEventListener('change', function(e) {
+	cookieCheckbox.addEventListener('change', function (e) {
 		if (e.target.checked) {
 			cookieTextarea.style.display = 'block'
 			if (supportsLocalStorage()) {
@@ -301,7 +301,7 @@ function initCookieInput() {
 	}, false)
 
 	// Save cookie value to localStorage when changed
-	cookieTextarea.addEventListener('input', function(e) {
+	cookieTextarea.addEventListener('input', function (e) {
 		if (supportsLocalStorage()) {
 			localStorage['customCookie'] = e.target.value
 		}
@@ -316,7 +316,7 @@ function initWarningsOnly() {
 	if (supportsLocalStorage() && localStorage["warningsOnly"] == "yes") {
 		warningsCheckbox.checked = true
 	}
-	warningsCheckbox.addEventListener("change", function(e) {
+	warningsCheckbox.addEventListener("change", function (e) {
 		if (supportsLocalStorage()) {
 			if (e.target.checked) {
 				localStorage["warningsOnly"] = "yes"
@@ -335,7 +335,7 @@ function initShowDuplicates() {
 	if (supportsLocalStorage() && localStorage["showDuplicates"] == "yes") {
 		showDuplicatesCheckbox.checked = true
 	}
-	showDuplicatesCheckbox.addEventListener("change", function(e) {
+	showDuplicatesCheckbox.addEventListener("change", function (e) {
 		if (supportsLocalStorage()) {
 			if (e.target.checked) {
 				localStorage["showDuplicates"] = "yes"
@@ -490,15 +490,15 @@ function injectHyperlinks() {
 	linkify(errors, "all image candidate strings must specify a width",
 		"https://ericportis.com/posts/2014/srcset-sizes/",
 		"srcset and sizes overview")
-	}
+}
 
 function replaceSuccessFailure() {
 	successfailure = document.querySelector(".success, .failure")
 	if (successfailure === null) return
-	
+
 	// Check if we're in multi-URL mode
 	var isMultiUrl = document.getElementById('multi-url-results') !== null
-	
+
 	if (document.querySelector(".non-document-error") !== null) {
 		successfailure.className = "fatalfailure"
 		successfailure.textContent = "Document checking not completed."
@@ -512,7 +512,7 @@ function replaceSuccessFailure() {
 		} else {
 			hasVisibleErrors = document.querySelector(".error:not(.hidden), .warning:not(.hidden)") !== null
 		}
-		
+
 		if (hasVisibleErrors) {
 			successfailure.className = "failure"
 			// In multi-URL mode, keep the original text with counts
@@ -527,7 +527,7 @@ function replaceSuccessFailure() {
 			}
 		}
 	}
-	
+
 	if (document.querySelector("#results > ol:first-child") !== null) {
 		if (document.querySelector("#results > ol:first-child li:not(.hidden)") === null) {
 			document.querySelector("#results > ol:first-child").className = "hidden"
@@ -547,8 +547,8 @@ function replaceYearWarning() {
 	var warnings = document.querySelectorAll(".warning")
 	for (var i = 0; i < warnings.length; ++i) {
 		warnings[i].firstChild.lastChild.lastChild.textContent =
-		warnings[i].firstChild.lastChild.lastChild.textContent
-		.replace(/Year may be mistyped.*/, "Year may be mistyped.")
+			warnings[i].firstChild.lastChild.lastChild.textContent
+				.replace(/Year may be mistyped.*/, "Year may be mistyped.")
 	}
 }
 
@@ -556,8 +556,8 @@ function linkify(messages, text, target, title) {
 	if (!messages) return
 	for (var i = 0; i < messages.length; ++i) {
 		messages[i].firstChild.lastChild.innerHTML =
-		messages[i].firstChild.lastChild.innerHTML.replace(text,
-		"<a href='" + target + "' title='" + title + "'>" + text + "</a>");
+			messages[i].firstChild.lastChild.innerHTML.replace(text,
+				"<a href='" + target + "' title='" + title + "'>" + text + "</a>");
 	}
 }
 
@@ -565,7 +565,7 @@ function moveLangAndDirWarningsAndAddLinks() {
 	var warnings = document.getElementsByClassName("warning")
 	var messagesContainer = document.querySelector("#results > ol:first-child")
 	var langOrDirWarningText = "This document appears to be written in"
-	var undetectedMissingLang= "Consider adding a lang attribute"
+	var undetectedMissingLang = "Consider adding a lang attribute"
 	var contentLanguageText = "The value of the HTTP Content-Language header is"
 	var langTextWithNoLangGuidance = 'For further guidance, consult <a href="https://www.w3.org/International/questions/qa-no-language#nonlinguistic">Tagging text with no language</a>, <a href="https://www.w3.org/International/techniques/authoring-html.en?open=language&open=textprocessing#textprocessing">Declaring the overall language of a page</a> and <a href="https://www.w3.org/International/techniques/authoring-html.en?open=language&open=langvalues#langvalues">Choosing language tags</a>.'
 	var langGuidance = 'For further guidance, consult <a href="https://www.w3.org/International/techniques/authoring-html.en?open=language&open=textprocessing#textprocessing">Declaring the overall language of a page</a> and <a href="https://www.w3.org/International/techniques/authoring-html.en?open=language&open=langvalues#langvalues">Choosing language tags</a>.'
@@ -641,13 +641,13 @@ function installTextarea() {
 				if (supportsLocalStorage() && localStorage["inputWasCss"] == "yes") {
 					cssCheckbox.checked = true
 				}
-				cssCheckbox.addEventListener("change", function(e) {
+				cssCheckbox.addEventListener("change", function (e) {
 					if (document.getElementById('doc').value == htmlBoilerplate
-							&& e.target.checked) {
+						&& e.target.checked) {
 						document.getElementById('doc').value = ""
 					}
 					if (document.getElementById('doc').value == ""
-							&& !e.target.checked) {
+						&& !e.target.checked) {
 						document.getElementById('doc').value = htmlBoilerplate
 					}
 					if (supportsLocalStorage()) {
@@ -718,7 +718,7 @@ function installMultiUrlInput() {
 			}
 			input.parentNode.replaceChild(multiUrlInput, input)
 			reflow(multiUrlInput)
-			
+
 			// Add hidden input to indicate multi URL mode
 			if (multiUrlModeInput && !document.querySelector('input[name="multiurl"]')) {
 				var submit = document.getElementById("submit")
@@ -837,7 +837,7 @@ function emulateHashChanged() {
 if (document.getElementById) {
 	window.onload = reboot
 	if (document.addEventListener) {
-		document.addEventListener("DOMContentLoaded", function() {
+		document.addEventListener("DOMContentLoaded", function () {
 			window.onload = undefined
 			reboot()
 			setTimeout(function () {
@@ -913,7 +913,7 @@ function initFilters() {
 		replaceSuccessFailure()
 		return
 	}
-	
+
 	// Remove existing filters section if it exists (for multi-URL mode re-initialization)
 	var existingFilters = document.getElementById('filters')
 	if (existingFilters && existingFilters.parentNode) {
@@ -953,7 +953,7 @@ function initFilters() {
 	filters.appendChild(heading)
 
 	// Generate errors/warnings/info fieldsets
-	makeFieldset = function(messages, displayType) {
+	makeFieldset = function (messages, displayType) {
 		var fieldset,
 			legend,
 			hide,
@@ -972,7 +972,7 @@ function initFilters() {
 			messageGroup,
 			uniqueMessage,
 			makeCheckbox,
-			categoryCounts = {html: 0, css: 0, i18n: 0},
+			categoryCounts = { html: 0, css: 0, i18n: 0 },
 			messageTypeClass = ''
 
 		// Derive messageTypeClass from DOM elements
@@ -982,7 +982,7 @@ function initFilters() {
 			else if (messages[0].classList.contains('info')) messageTypeClass = 'info'
 		}
 
-		makeCheckbox = function(messageName, messageCollection) {
+		makeCheckbox = function (messageName, messageCollection) {
 			var checkbox, label, listitem,
 				messageSpan = document.getElementById(messageCollection[0]).getElementsByTagName("p")[0].getElementsByTagName("span")[0].cloneNode(true)
 
@@ -1020,17 +1020,17 @@ function initFilters() {
 			for (var i = 0; i < messages.length; ++i) {
 				message = messages[i]
 				messageClone = messages[i].cloneNode(true)
-					uniqueMessage = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].textContent
-					messageGroupEl = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].cloneNode(true)
-					messageGroupElCode = messageGroupEl.getElementsByTagName("code")
-					for (var j = 0; j < messageGroupElCode.length; ++j) {
-						messageGroupElCode[j].textContent = "___"
-						if (messageGroupElCode[j].parentNode instanceof HTMLAnchorElement) {
-							messageGroupElCode[j].parentNode.removeAttribute("href")
-						}
+				uniqueMessage = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].textContent
+				messageGroupEl = messageClone.getElementsByTagName('p')[0].getElementsByTagName('span')[0].cloneNode(true)
+				messageGroupElCode = messageGroupEl.getElementsByTagName("code")
+				for (var j = 0; j < messageGroupElCode.length; ++j) {
+					messageGroupElCode[j].textContent = "___"
+					if (messageGroupElCode[j].parentNode instanceof HTMLAnchorElement) {
+						messageGroupElCode[j].parentNode.removeAttribute("href")
 					}
-					messageGroup = messageGroupEl.textContent
-					messageGroupNode = messageGroupEl
+				}
+				messageGroup = messageGroupEl.textContent
+				messageGroupNode = messageGroupEl
 
 				if (!messages.hasOwnProperty(messageGroup)) {
 					messages[messageGroup] = {
@@ -1127,23 +1127,23 @@ function initFilters() {
 		}
 	}
 
-	showCount = function() {
+	showCount = function () {
 		var count, span
-		
+
 		// In multi-URL mode, count hidden messages within the multi-URL container
 		if (isMultiUrl) {
 			var multiUrlContainer = document.getElementById('multi-url-results')
 			count = multiUrlContainer ? multiUrlContainer.querySelectorAll("li.hidden") : []
-			
+
 			// Update the overall status with current visible counts
 			updateMultiUrlOverallStatus(multiUrlContainer)
-			
+
 			// Update duplicate section counts
 			updateDuplicateSectionCounts()
 		} else {
 			count = document.querySelectorAll("body ol > li.hidden")
 		}
-		
+
 		span = document.querySelector(".filtercount")
 		if (span) {
 			span.parentNode.removeChild(span)
@@ -1180,7 +1180,7 @@ function initFilters() {
 	}
 	fieldsets = filters.getElementsByTagName("fieldset")
 
-	toggleFilters = function() {
+	toggleFilters = function () {
 		if (helptext.className === "expanded") {
 			helptext.className = "message_filtering"
 			helptext.textContent = "Use the Message Filtering button below to display options for hiding/showing particular messages, and to see total counts of errors and warnings."
@@ -1197,13 +1197,13 @@ function initFilters() {
 
 	// Add event listener for the filters button
 	filtersButton.addEventListener('click', function (e) {
-	 	toggleFilters()
+		toggleFilters()
 	}, false)
 
 	// Show/hide the messages when the checkboxes are toggled
 	checkboxes = document.getElementById("filters").getElementsByTagName("input")
 	for (var i = 0; i < checkboxes.length; ++i) {
-		checkboxes[i].addEventListener("change", function(e) {
+		checkboxes[i].addEventListener("change", function (e) {
 			messageCollection = e.target.vnuMessageCollection
 			for (var j = 0; j < messageCollection.length; ++j) {
 				className = document.getElementById(messageCollection[j]).className
@@ -1222,7 +1222,7 @@ function initFilters() {
 
 	links = document.getElementsByClassName("hide")
 	for (var n = 0; n < links.length; ++n) {
-		links[n].addEventListener("click", function(e) {
+		links[n].addEventListener("click", function (e) {
 			if (e.target.className !== "hide") {
 				return
 			}
@@ -1263,7 +1263,7 @@ function initFilters() {
 
 	links = document.getElementsByClassName("show")
 	for (var n = 0; n < links.length; ++n) {
-		links[n].addEventListener("click", function(e) {
+		links[n].addEventListener("click", function (e) {
 			if (e.target.className !== "show") {
 				return
 			}
@@ -1305,7 +1305,7 @@ function initFilters() {
 	// Add event handlers for "Show only HTML" links
 	links = document.getElementsByClassName("show-html")
 	for (var n = 0; n < links.length; ++n) {
-		links[n].addEventListener("click", function(e) {
+		links[n].addEventListener("click", function (e) {
 			e.preventDefault()
 			// Use currentTarget to get the element the listener is attached to
 			var messageType = e.currentTarget.getAttribute('data-message-type')
@@ -1367,32 +1367,32 @@ function supportsLocalStorage() {
 function handleMultiUrlValidation() {
 	var urlsTextarea = document.getElementById('doc')
 	if (!urlsTextarea) return
-	
+
 	var urlsText = urlsTextarea.value.trim()
 	if (!urlsText) return
-	
+
 	// Split by newlines and filter out empty lines
 	var urls = urlsText.split('\n')
-		.map(function(url) { return url.trim() })
-		.filter(function(url) { return url.length > 0 })
-	
+		.map(function (url) { return url.trim() })
+		.filter(function (url) { return url.length > 0 })
+
 	if (urls.length === 0) return
-	
+
 	// Clear results area and show loading message
 	var resultsDiv = document.getElementById('results')
 	if (!resultsDiv) return
-	
+
 	resultsDiv.innerHTML = '<h2 class="success">Validating ' + urls.length + ' URL(s)...</h2>'
-	
+
 	// Create container for all URL results
 	var allResults = {
 		urls: [],
 		completed: 0,
 		total: urls.length
 	}
-	
+
 	// Validate each URL
-	urls.forEach(function(url, index) {
+	urls.forEach(function (url, index) {
 		validateSingleUrl(url, index, allResults, resultsDiv)
 	})
 }
@@ -1400,12 +1400,12 @@ function handleMultiUrlValidation() {
 function validateSingleUrl(url, index, allResults, resultsDiv) {
 	var form = document.getElementsByTagName("form")[0]
 	if (!form) return
-	
+
 	// Get form parameters
 	var formData = new URLSearchParams()
 	formData.append('doc', url)
 	formData.append('out', 'html')
-	
+
 	// Add other form parameters (parser, charset, etc.)
 	var inputs = form.querySelectorAll('input:not([type="hidden"]):not([name="doc"]):not([name="multiurl"]), select')
 	for (var i = 0; i < inputs.length; i++) {
@@ -1420,19 +1420,19 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 			}
 		}
 	}
-	
+
 	// Check if showsource checkbox is checked
 	var showSourceCheckbox = document.getElementById('showsource')
 	if (showSourceCheckbox && showSourceCheckbox.checked) {
 		formData.append('showsource', 'yes')
 	}
-	
+
 	// Check if showduplicates checkbox is checked
 	var showDuplicatesCheckbox = document.getElementById('showduplicates')
 	if (showDuplicatesCheckbox && showDuplicatesCheckbox.checked) {
 		formData.append('showduplicates', 'yes')
 	}
-	
+
 	// Make AJAX request
 	var xhr = new XMLHttpRequest()
 	var requestUrl = window.location.pathname + '?' + formData.toString()
@@ -1445,30 +1445,30 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		xhr.setRequestHeader('X-Custom-Cookie', cookieTextarea.value.trim())
 	}
 
-	xhr.onload = function() {
+	xhr.onload = function () {
 		if (xhr.status >= 200 && xhr.status < 400) {
 			// Parse response HTML
 			var parser = new DOMParser()
 			var doc = parser.parseFromString(xhr.responseText, 'text/html')
-			
+
 			// Extract results
 			var resultsOl = doc.querySelector('#results > ol:first-child')
 			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
-			
+
 			// Clone and update IDs to make them unique for multi-URL
 			var clonedResultsOl = null
 			if (resultsOl) {
 				clonedResultsOl = resultsOl.cloneNode(true)
 				// Update all message IDs to include URL index
 				var messages = clonedResultsOl.querySelectorAll('li[id^="vnuId"]')
-				messages.forEach(function(msg) {
+				messages.forEach(function (msg) {
 					if (msg.id) {
 						msg.setAttribute('data-original-id', msg.id)
 						msg.id = 'url' + index + '_' + msg.id
 					}
 				})
 			}
-			
+
 			// Extract source code if available
 			var sourceHeading = doc.getElementById('source')
 			var sourceList = null
@@ -1481,7 +1481,7 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 					sourceList = nextSibling.cloneNode(true)
 				}
 			}
-			
+
 			allResults.urls[index] = {
 				url: url,
 				results: clonedResultsOl,
@@ -1489,12 +1489,12 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 				sourceHeading: sourceHeading ? sourceHeading.cloneNode(true) : null,
 				sourceList: sourceList
 			}
-			
+
 			allResults.completed++
-			
+
 			// Update progress
 			updateValidationProgress(allResults, resultsDiv)
-			
+
 			// If all URLs are validated, display results
 			if (allResults.completed === allResults.total) {
 				displayMultiUrlResults(allResults, resultsDiv)
@@ -1507,36 +1507,36 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 				status: null,
 				error: 'HTTP Error: ' + xhr.status
 			}
-			
+
 			allResults.completed++
-			
+
 			// Update progress
 			updateValidationProgress(allResults, resultsDiv)
-			
+
 			if (allResults.completed === allResults.total) {
 				displayMultiUrlResults(allResults, resultsDiv)
 			}
 		}
 	}
-	
-	xhr.onerror = function() {
+
+	xhr.onerror = function () {
 		allResults.urls[index] = {
 			url: url,
 			results: null,
 			status: null,
 			error: 'Network error'
 		}
-		
+
 		allResults.completed++
-		
+
 		// Update progress
 		updateValidationProgress(allResults, resultsDiv)
-		
+
 		if (allResults.completed === allResults.total) {
 			displayMultiUrlResults(allResults, resultsDiv)
 		}
 	}
-	
+
 	xhr.send()
 }
 
@@ -1550,20 +1550,20 @@ function updateValidationProgress(allResults, resultsDiv) {
 
 function updateMultiUrlOverallStatus(multiUrlContainer) {
 	if (!multiUrlContainer) return
-	
+
 	var overallStatus = document.getElementById('multi-url-overall-status')
 	if (!overallStatus) return
-	
+
 	var totalUrls = parseInt(overallStatus.getAttribute('data-total-urls') ?? '0')
-	
+
 	// Count visible errors and warnings
 	var visibleErrors = multiUrlContainer.querySelectorAll('.error:not(.hidden)')
 	var visibleWarnings = multiUrlContainer.querySelectorAll('.warning:not(.hidden)')
-	
+
 	var errorCount = visibleErrors.length
 	var warningCount = visibleWarnings.length
 	var hasErrors = errorCount > 0
-	
+
 	// Update the status text and class
 	if (hasErrors || warningCount > 0) {
 		overallStatus.className = 'failure'
@@ -1580,17 +1580,17 @@ function updateMultiUrlOverallStatus(multiUrlContainer) {
 function updateDuplicateSectionCounts() {
 	var duplicateSection = document.getElementById('duplicate-messages-section')
 	if (!duplicateSection) return
-	
+
 	// Count visible duplicate errors
 	var duplicateErrorsList = duplicateSection.querySelector('ol.duplicate-messages-list')
 	if (duplicateErrorsList) {
 		var errorItems = duplicateErrorsList.querySelectorAll('.duplicate-message-item')
 		var visibleErrorCount = 0
-		errorItems.forEach(function(item) {
+		errorItems.forEach(function (item) {
 			// Check if any of the messages in this duplicate group are visible
 			var hasVisibleMessage = false
 			var urlLinks = item.querySelectorAll('ul li a')
-			urlLinks.forEach(function(link) {
+			urlLinks.forEach(function (link) {
 				var urlIndex = parseInt(link.href.split('#url-')[1])
 				if (!isNaN(urlIndex)) {
 					var urlSection = document.getElementById('url-' + urlIndex)
@@ -1609,7 +1609,7 @@ function updateDuplicateSectionCounts() {
 				item.style.display = 'none'
 			}
 		})
-		
+
 		// Update heading
 		var errorHeading = duplicateSection.querySelector('h4')
 		if (errorHeading && errorHeading.textContent.includes('Duplicate Errors')) {
@@ -1627,17 +1627,17 @@ function findDuplicateMessages(allResults) {
 		errors: {},
 		warnings: {}
 	}
-	
+
 	// Collect all messages from all URLs
-	allResults.urls.forEach(function(urlResult, urlIndex) {
+	allResults.urls.forEach(function (urlResult, urlIndex) {
 		if (!urlResult.results) return
-		
+
 		// Process errors
 		var errors = urlResult.results.querySelectorAll('.error')
-		errors.forEach(function(errorEl) {
+		errors.forEach(function (errorEl) {
 			var messageText = extractMessageText(errorEl)
 			if (!messageText) return
-			
+
 			if (!messageMap.errors[messageText]) {
 				messageMap.errors[messageText] = {
 					text: messageText,
@@ -1652,13 +1652,13 @@ function findDuplicateMessages(allResults) {
 				element: errorEl.cloneNode(true)
 			})
 		})
-		
+
 		// Process warnings
 		var warnings = urlResult.results.querySelectorAll('.warning')
-		warnings.forEach(function(warningEl) {
+		warnings.forEach(function (warningEl) {
 			var messageText = extractMessageText(warningEl)
 			if (!messageText) return
-			
+
 			if (!messageMap.warnings[messageText]) {
 				messageMap.warnings[messageText] = {
 					text: messageText,
@@ -1674,7 +1674,7 @@ function findDuplicateMessages(allResults) {
 			})
 		})
 	})
-	
+
 	// Filter to include messages that appear in 2+ URLs
 	// Separate into: common (all URLs) and duplicate (2+ URLs but not all)
 	var totalUrls = allResults.urls.length
@@ -1682,12 +1682,12 @@ function findDuplicateMessages(allResults) {
 	var duplicateErrors = []   // Errors in 2+ URLs but not all
 	var commonWarnings = []    // Warnings in ALL URLs
 	var duplicateWarnings = [] // Warnings in 2+ URLs but not all
-	
+
 	for (var msgText in messageMap.errors) {
 		if (messageMap.errors.hasOwnProperty(msgText)) {
 			var msg = messageMap.errors[msgText]
 			// Remove duplicates from urlIndices FIRST
-			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+			msg.urlIndices = msg.urlIndices.filter(function (value, index, self) {
 				return self.indexOf(value) === index
 			})
 			// Check if it appears in ALL URLs
@@ -1700,12 +1700,12 @@ function findDuplicateMessages(allResults) {
 			}
 		}
 	}
-	
+
 	for (var msgText in messageMap.warnings) {
 		if (messageMap.warnings.hasOwnProperty(msgText)) {
 			var msg = messageMap.warnings[msgText]
 			// Remove duplicates from urlIndices FIRST
-			msg.urlIndices = msg.urlIndices.filter(function(value, index, self) {
+			msg.urlIndices = msg.urlIndices.filter(function (value, index, self) {
 				return self.indexOf(value) === index
 			})
 			// Check if it appears in ALL URLs
@@ -1718,7 +1718,7 @@ function findDuplicateMessages(allResults) {
 			}
 		}
 	}
-	
+
 	return {
 		common: {
 			errors: commonErrors,
@@ -1739,13 +1739,13 @@ function extractMessageText(messageEl) {
 	var messageClone = messageEl.cloneNode(true)
 	var messagePara = messageClone.querySelector('p')
 	if (!messagePara) return null
-	
+
 	var messageSpan = messagePara.querySelector('span')
 	if (!messageSpan) return null
-	
+
 	// Clone the span to normalize it
 	var normalizedSpan = messageSpan.cloneNode(true)
-	
+
 	// Replace all <code> content with placeholder to group similar messages
 	var codeElements = normalizedSpan.querySelectorAll('code')
 	for (var i = 0; i < codeElements.length; i++) {
@@ -1755,7 +1755,7 @@ function extractMessageText(messageEl) {
 			codeElements[i].parentNode.removeAttribute('href')
 		}
 	}
-	
+
 	return normalizedSpan.textContent.trim()
 }
 
@@ -1767,15 +1767,15 @@ function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
 	var allCommonErrors = duplicateMessages.common.errors
 	var allDuplicateErrors = duplicateMessages.duplicate.errors
 	var allErrors = allCommonErrors.concat(allDuplicateErrors)
-	
-	allErrors.forEach(function(dupMsg) {
-		dupMsg.urlIndices.forEach(function(urlIndex) {
+
+	allErrors.forEach(function (dupMsg) {
+		dupMsg.urlIndices.forEach(function (urlIndex) {
 			var urlSection = document.getElementById('url-' + urlIndex)
 			if (!urlSection) return
-			
+
 			// Find all errors in this URL that match the duplicate error
 			var errors = urlSection.querySelectorAll('.error')
-			errors.forEach(function(msgEl) {
+			errors.forEach(function (msgEl) {
 				var msgText = extractMessageText(msgEl)
 				if (msgText === dupMsg.text) {
 					// Add a special class to mark as duplicate
@@ -1787,7 +1787,7 @@ function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
 			})
 		})
 	})
-	
+
 	// Update URL counts after hiding duplicates
 	updateUrlCounts()
 }
@@ -1797,18 +1797,18 @@ function hideDuplicateMessagesInUrls(duplicateMessages, allResults) {
  */
 function showAllMessagesInUrls(duplicateMessages, allResults) {
 	// Simply remove all duplicate-hidden classes from all URL sections
-	allResults.urls.forEach(function(urlResult, urlIndex) {
+	allResults.urls.forEach(function (urlResult, urlIndex) {
 		var urlSection = document.getElementById('url-' + urlIndex)
 		if (!urlSection) return
-		
+
 		// Find all messages marked as duplicate-hidden
 		var messages = urlSection.querySelectorAll('.duplicate-hidden')
-		messages.forEach(function(msgEl) {
+		messages.forEach(function (msgEl) {
 			msgEl.classList.remove('duplicate-hidden')
 			msgEl.classList.remove('hidden')
 		})
 	})
-	
+
 	// Update URL counts after showing duplicates
 	updateUrlCounts()
 }
@@ -1818,17 +1818,17 @@ function showAllMessagesInUrls(duplicateMessages, allResults) {
  */
 function updateUrlCounts() {
 	var urlSections = document.querySelectorAll('.url-result-section')
-	urlSections.forEach(function(urlSection, index) {
+	urlSections.forEach(function (urlSection, index) {
 		var countText = urlSection.querySelector('.count-text')
 		if (!countText) return
-		
+
 		// Count visible errors and warnings
 		var visibleErrors = urlSection.querySelectorAll('.error:not(.hidden)')
 		var visibleWarnings = urlSection.querySelectorAll('.warning:not(.hidden)')
-		
+
 		var errorCount = visibleErrors.length
 		var warningCount = visibleWarnings.length
-		
+
 		countText.textContent = '(' + errorCount + ' error(s), ' + warningCount + ' warning(s))'
 	})
 }
@@ -1854,15 +1854,15 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 	headerDiv.style.padding = '5px'
 	headerDiv.style.borderRadius = '3px'
 	headerDiv.style.transition = 'background-color 0.2s'
-	
+
 	// Add hover effect
-	headerDiv.onmouseenter = function() {
+	headerDiv.onmouseenter = function () {
 		headerDiv.style.backgroundColor = '#f5f5f5'
 	}
-	headerDiv.onmouseleave = function() {
+	headerDiv.onmouseleave = function () {
 		headerDiv.style.backgroundColor = 'transparent'
 	}
-	
+
 	// Toggle icon
 	var toggleIcon = createHtmlElement('span')
 	toggleIcon.textContent = '▶ '
@@ -1872,7 +1872,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 	toggleIcon.style.transition = 'transform 0.2s'
 	toggleIcon.style.display = 'inline-block'
 	headerDiv.appendChild(toggleIcon)
-	
+
 	// Get the original message span with full formatting
 	var originalMessageEl = dupMsg.fullElement.querySelector('p span')
 	if (originalMessageEl) {
@@ -1880,7 +1880,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 		messageContent.className = 'duplicate-message-content'
 		messageContent.style.flex = '1'
 		messageContent.appendChild(originalMessageEl.cloneNode(true))
-		
+
 		// Add URL count badge
 		var urlCountBadge = createHtmlElement('span')
 		urlCountBadge.textContent = ' (' + dupMsg.urlIndices.length + ' URL' + (dupMsg.urlIndices.length > 1 ? 's' : '') + ')'
@@ -1889,10 +1889,10 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 		urlCountBadge.style.fontWeight = 'normal'
 		urlCountBadge.style.marginLeft = '8px'
 		messageContent.appendChild(urlCountBadge)
-		
+
 		headerDiv.appendChild(messageContent)
 	}
-	
+
 	listItem.appendChild(headerDiv)
 
 	// Create details container (initially hidden)
@@ -1915,13 +1915,13 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 	urlList.style.marginTop = '5px'
 	urlList.style.marginBottom = '0'
 
-	dupMsg.urlIndices.forEach(function(urlIndex) {
+	dupMsg.urlIndices.forEach(function (urlIndex) {
 		// Get all occurrences for this URL
-		var urlOccurrences = dupMsg.occurrences.filter(function(occ) {
+		var urlOccurrences = dupMsg.occurrences.filter(function (occ) {
 			return occ.urlIndex === urlIndex
 		})
 
-		urlOccurrences.forEach(function(occurrence, occIndex) {
+		urlOccurrences.forEach(function (occurrence, occIndex) {
 			var urlItem = createHtmlElement('li')
 			urlItem.style.marginBottom = '15px'
 
@@ -1932,7 +1932,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 			var urlLink = createHtmlElement('a')
 			urlLink.href = '#url-' + urlIndex
 			urlLink.textContent = 'URL ' + (urlIndex + 1) + ': ' + allResults.urls[urlIndex].url
-			urlLink.onclick = function(e) {
+			urlLink.onclick = function (e) {
 				e.preventDefault()
 				scrollToUrlSection(urlIndex)
 			}
@@ -1944,13 +1944,13 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 				var locationSpan = createHtmlElement('span')
 				locationSpan.style.marginLeft = '10px'
 				locationSpan.style.fontSize = '0.9em'
-				
+
 				// If there's a source link, create a clickable link
 				if (locationInfo.href) {
 					var sourceLink = createHtmlElement('a')
 					sourceLink.href = locationInfo.href
 					sourceLink.textContent = locationInfo.text
-					sourceLink.onclick = function(e) {
+					sourceLink.onclick = function (e) {
 						e.preventDefault()
 						scrollToUrlSectionAndSource(urlIndex, locationInfo.href)
 					}
@@ -1959,12 +1959,12 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 					// No source link, just display text
 					locationSpan.textContent = locationInfo.text
 				}
-				
+
 				urlInfoDiv.appendChild(locationSpan)
 			}
-			
+
 			urlItem.appendChild(urlInfoDiv)
-			
+
 			// Add extract (code snippet) specific to this occurrence
 			var occurrenceExtract = occurrence.element.querySelector('p.extract')
 			if (occurrenceExtract) {
@@ -1973,16 +1973,16 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 				extractClone.style.fontSize = '0.9em'
 				urlItem.appendChild(extractClone)
 			}
-			
+
 			urlList.appendChild(urlItem)
 		})
 	})
 
 	detailsContainer.appendChild(urlList)
 	listItem.appendChild(detailsContainer)
-	
+
 	// Add toggle functionality
-	headerDiv.onclick = function() {
+	headerDiv.onclick = function () {
 		var isExpanded = detailsContainer.style.display !== 'none'
 		if (isExpanded) {
 			// Collapse
@@ -1996,7 +1996,7 @@ function createDuplicateMessageItem(dupMsg, allResults, messageType) {
 			toggleIcon.style.transform = 'rotate(0deg)'
 		}
 	}
-	
+
 	return listItem
 }
 
@@ -2021,12 +2021,24 @@ function scrollToUrlSection(urlIndex) {
 function scrollToUrlSectionAndSource(urlIndex, sourceHref) {
 	var urlSection = document.querySelectorAll('.url-result-section')[urlIndex]
 	if (!urlSection) return
-	
+
+	// Check if the results content is collapsed and expand it if needed
+	var resultsContent = urlSection.querySelector('.url-results-content')
+	var toggleIcon = urlSection.querySelector('.toggle-icon')
+
+	if (resultsContent && resultsContent.classList.contains('collapsed')) {
+		// Expand the section
+		resultsContent.classList.remove('collapsed')
+		if (toggleIcon) {
+			toggleIcon.textContent = '▼'
+		}
+	}
+
 	// Scroll to URL section first
 	urlSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-	
+
 	// Then try to scroll to the specific source line
-	setTimeout(function() {
+	setTimeout(function () {
 		var sourceElement = urlSection.querySelector(sourceHref)
 		if (sourceElement) {
 			sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -2035,7 +2047,7 @@ function scrollToUrlSectionAndSource(urlIndex, sourceHref) {
 			var oldHash = window.location.hash
 			window.location.hash = sourceHref
 			// Restore hash after a moment to avoid affecting browser history too much
-			setTimeout(function() {
+			setTimeout(function () {
 				if (window.location.hash === sourceHref) {
 					// Keep the hash, updateFragmentIdHilite will handle the styling
 				}
@@ -2052,7 +2064,7 @@ function scrollToUrlSectionAndSource(urlIndex, sourceHref) {
 function highlightElement(element, duration) {
 	var originalBg = element.style.backgroundColor
 	element.style.backgroundColor = '#ffffcc'
-	setTimeout(function() {
+	setTimeout(function () {
 		element.style.backgroundColor = originalBg
 	}, duration)
 }
@@ -2064,11 +2076,11 @@ function highlightElement(element, duration) {
 function extractLocationInfo(messageEl) {
 	// Look for all <p> elements in the message
 	var paragraphs = messageEl.querySelectorAll('p')
-	
+
 	for (var i = 0; i < paragraphs.length; i++) {
 		var p = paragraphs[i]
 		var text = p.textContent ?? p.innerText
-		
+
 		// Look for patterns like "From line X, column Y; to line Z, column W"
 		// or "At line X, column Y"
 		if (text.indexOf('From line') !== -1 || text.indexOf('At line') !== -1 || text.indexOf('On line') !== -1) {
@@ -2088,19 +2100,19 @@ function extractLocationInfo(messageEl) {
 			}
 		}
 	}
-	
+
 	return null
 }
 
 function displayMultiUrlResults(allResults, resultsDiv) {
 	resultsDiv.innerHTML = ''
-	
+
 	// Count total errors and warnings
 	var totalErrors = 0
 	var totalWarnings = 0
 	var hasErrors = false
-	
-	allResults.urls.forEach(function(urlResult) {
+
+	allResults.urls.forEach(function (urlResult) {
 		if (urlResult.results) {
 			var errors = urlResult.results.querySelectorAll('.error')
 			var warnings = urlResult.results.querySelectorAll('.warning')
@@ -2110,7 +2122,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		}
 		if (urlResult.error) hasErrors = true
 	})
-	
+
 	// Display overall status
 	var overallStatus = createHtmlElement('h2')
 	overallStatus.id = 'multi-url-overall-status'
@@ -2125,40 +2137,40 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). No errors found.'
 	}
 	resultsDiv.appendChild(overallStatus)
-	
+
 	// Get checkbox state from form (user selected before validation)
 	var duplicateCheckbox = document.getElementById('showduplicates')
 	var showDuplicatesSection = duplicateCheckbox ? duplicateCheckbox.checked : false
-	
+
 	// Only create duplicate section if there are 2 or more URLs
 	var duplicateSection = null
 	var duplicateMessages = null
-	
+
 	if (allResults.urls.length >= 2) {
 		// Detect duplicate errors/warnings across URLs
 		duplicateMessages = findDuplicateMessages(allResults)
-		
+
 		// Create duplicate section container
 		duplicateSection = createHtmlElement('div')
 		duplicateSection.id = 'duplicate-messages-section'
 		duplicateSection.className = 'error'
 		duplicateSection.style.marginTop = '20px'
 		duplicateSection.style.marginBottom = '30px'
-		
+
 		// Initially hide if checkbox is not checked
 		if (!showDuplicatesSection) {
 			duplicateSection.style.display = 'none'
 		}
-		
+
 		// Calculate total shared errors
 		var totalSharedErrors = duplicateMessages.common.errors.length + duplicateMessages.duplicate.errors.length
-		
+
 		var mainHeading = createHtmlElement('h3')
 		mainHeading.textContent = 'Shared Errors Across URLs (' + totalSharedErrors + ' errors)'
 		mainHeading.style.marginTop = '0'
 		mainHeading.style.color = '#e65100'
 		duplicateSection.appendChild(mainHeading)
-		
+
 		// Section 1: Common Errors (in ALL URLs) - Only show errors, not warnings
 		var hasCommonErrors = duplicateMessages.common.errors.length > 0
 		if (hasCommonErrors) {
@@ -2168,31 +2180,31 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			commonSection.style.border = '2px solid #d32f2f'
 			commonSection.style.borderRadius = '5px'
 			commonSection.style.backgroundColor = '#ffebee'
-			
+
 			var commonHeading = createHtmlElement('h4')
 			commonHeading.textContent = '🔴 Errors in All URLs (' + duplicateMessages.common.errors.length + ' errors)'
 			commonHeading.style.marginTop = '0'
 			commonHeading.style.color = '#b71c1c'
 			commonSection.appendChild(commonHeading)
-			
+
 			var commonDescription = createHtmlElement('p')
 			commonDescription.textContent = 'These errors appear in ALL ' + allResults.urls.length + ' validated URLs. Fix these first for maximum impact across all pages.'
 			commonDescription.style.fontStyle = 'italic'
 			commonDescription.style.marginBottom = '15px'
 			commonSection.appendChild(commonDescription)
-			
+
 			// Display common errors only
 			var commonErrorsList = createHtmlElement('ol')
 			commonErrorsList.className = 'common-messages-list'
-			duplicateMessages.common.errors.forEach(function(dupMsg) {
+			duplicateMessages.common.errors.forEach(function (dupMsg) {
 				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
 				commonErrorsList.appendChild(listItem)
 			})
 			commonSection.appendChild(commonErrorsList)
-			
+
 			duplicateSection.appendChild(commonSection)
 		}
-		
+
 		// Section 2: Partial Errors (in 2+ URLs but not all) - Only show errors, not warnings
 		var hasPartialErrors = duplicateMessages.duplicate.errors.length > 0
 		if (hasPartialErrors) {
@@ -2201,31 +2213,31 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			partialDuplicateSection.style.border = '2px solid #ff9800'
 			partialDuplicateSection.style.borderRadius = '5px'
 			partialDuplicateSection.style.backgroundColor = '#fff3e0'
-			
+
 			var partialHeading = createHtmlElement('h4')
 			partialHeading.textContent = '🟠 Errors in Some URLs (' + duplicateMessages.duplicate.errors.length + ' errors)'
 			partialHeading.style.marginTop = '0'
 			partialHeading.style.color = '#e65100'
 			partialDuplicateSection.appendChild(partialHeading)
-			
+
 			var partialDescription = createHtmlElement('p')
 			partialDescription.textContent = 'These errors appear in 2 or more URLs, but not in all of them. Click on each error to see which specific URLs contain it.'
 			partialDescription.style.fontStyle = 'italic'
 			partialDescription.style.marginBottom = '15px'
 			partialDuplicateSection.appendChild(partialDescription)
-			
+
 			// Display partial errors only
 			var errorsList = createHtmlElement('ol')
 			errorsList.className = 'duplicate-messages-list'
-			duplicateMessages.duplicate.errors.forEach(function(dupMsg) {
+			duplicateMessages.duplicate.errors.forEach(function (dupMsg) {
 				var listItem = createDuplicateMessageItem(dupMsg, allResults, 'error')
 				errorsList.appendChild(listItem)
 			})
 			partialDuplicateSection.appendChild(errorsList)
-			
+
 			duplicateSection.appendChild(partialDuplicateSection)
 		}
-		
+
 		// If no shared errors at all
 		if (!hasCommonErrors && !hasPartialErrors) {
 			var noSharedErrors = createHtmlElement('p')
@@ -2237,10 +2249,10 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			noSharedErrors.style.backgroundColor = '#e8f5e9'
 			duplicateSection.appendChild(noSharedErrors)
 		}
-		
+
 		// Add event listener to checkbox in form to toggle duplicate section and messages
 		if (duplicateCheckbox) {
-			duplicateCheckbox.addEventListener('change', function(e) {
+			duplicateCheckbox.addEventListener('change', function (e) {
 				if (e.target.checked) {
 					duplicateSection.style.display = 'block'
 					// Hide duplicate messages in individual URL results
@@ -2261,30 +2273,30 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			}, false)
 		}
 	} // End of if (allResults.urls.length >= 2)
-	
+
 	// Create container for all URL results
 	var urlResultsContainer = createHtmlElement('div')
 	urlResultsContainer.id = 'multi-url-results'
 	urlResultsContainer.style.marginTop = '20px'
-	
+
 	// Display results for each URL
-	allResults.urls.forEach(function(urlResult, index) {
+	allResults.urls.forEach(function (urlResult, index) {
 		var urlSection = createHtmlElement('div')
 		urlSection.className = 'url-result-section'
 		urlSection.id = 'url-' + index
-		
+
 		// URL header with toggle
 		var urlHeader = createHtmlElement('div')
 		urlHeader.className = 'url-header'
-		
+
 		var toggleIcon = createHtmlElement('span')
 		toggleIcon.className = 'toggle-icon'
 		toggleIcon.textContent = '▼'
-		
+
 		var urlText = createHtmlElement('span')
 		urlText.className = 'url-text'
 		urlText.textContent = ' URL ' + (index + 1) + ': ' + urlResult.url
-		
+
 		// Count errors and warnings for this URL
 		var errorCount = 0
 		var warningCount = 0
@@ -2292,7 +2304,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			errorCount = urlResult.results.querySelectorAll('.error').length
 			warningCount = urlResult.results.querySelectorAll('.warning').length
 		}
-		
+
 		var countText = createHtmlElement('span')
 		countText.className = 'count-text'
 		if (urlResult.error) {
@@ -2301,15 +2313,15 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		} else {
 			countText.textContent = '(' + errorCount + ' error(s), ' + warningCount + ' warning(s))'
 		}
-		
+
 		urlHeader.appendChild(toggleIcon)
 		urlHeader.appendChild(urlText)
 		urlHeader.appendChild(countText)
-		
+
 		// Results content (initially collapsed by default)
 		var resultsContent = createHtmlElement('div')
 		resultsContent.className = 'url-results-content collapsed'
-		
+
 		if (urlResult.error) {
 			var errorMsg = createHtmlElement('p')
 			errorMsg.style.color = '#f00'
@@ -2320,7 +2332,7 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			// Errors/Warnings Section
 			var messagesSection = createHtmlElement('div')
 			messagesSection.className = 'messages-section'
-			
+
 			if (urlResult.status) {
 				messagesSection.appendChild(urlResult.status)
 			}
@@ -2331,9 +2343,9 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 				noResults.textContent = 'No validation results available.'
 				messagesSection.appendChild(noResults)
 			}
-			
+
 			resultsContent.appendChild(messagesSection)
-			
+
 			// Source Code Section
 			if (urlResult.sourceHeading && urlResult.sourceList) {
 				var sourceSection = createHtmlElement('div')
@@ -2341,52 +2353,105 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 				sourceSection.style.marginTop = '20px'
 				sourceSection.style.borderTop = '2px solid #ccc'
 				sourceSection.style.paddingTop = '15px'
-				
+
 				sourceSection.appendChild(urlResult.sourceHeading)
 				sourceSection.appendChild(urlResult.sourceList)
-				
+
 				resultsContent.appendChild(sourceSection)
 			}
 		}
-		
+
 		// Toggle functionality
-		var isExpanded = false
-		urlHeader.onclick = function() {
-			isExpanded = !isExpanded
-			if (isExpanded) {
-				resultsContent.className = 'url-results-content'
-				toggleIcon.textContent = '▼'
+		urlHeader.onclick = function () {
+			// Check current state from DOM instead of relying on a variable
+			var isCurrentlyExpanded = !resultsContent.classList.contains('collapsed')
+
+			if (isCurrentlyExpanded) {
+				// Currently expanded, so collapse it
+				resultsContent.classList.add('collapsed')
+				toggleIcon.textContent = '▶'
 				toggleIcon.style.transform = 'rotate(0deg)'
 			} else {
-				resultsContent.className = 'url-results-content collapsed'
-				toggleIcon.textContent = '▶'
+				// Currently collapsed, so expand it
+				resultsContent.classList.remove('collapsed')
+				toggleIcon.textContent = '▼'
 				toggleIcon.style.transform = 'rotate(0deg)'
 			}
 		}
-		
+
 		urlSection.appendChild(urlHeader)
 		urlSection.appendChild(resultsContent)
 		urlResultsContainer.appendChild(urlSection)
 	})
-	
+
 	resultsDiv.appendChild(urlResultsContainer)
-	
+
 	// Append duplicate section after multi-url-results (only if it exists, i.e., >= 2 URLs)
 	if (duplicateSection) {
 		resultsDiv.appendChild(duplicateSection)
-		
+
 		// If checkbox is checked initially, hide duplicates in individual URL results
 		// This must happen AFTER urlResultsContainer is appended to DOM
 		if (showDuplicatesSection && duplicateMessages) {
 			hideDuplicateMessagesInUrls(duplicateMessages, allResults)
 		}
 	}
-	
+
 	// Re-initialize filters and other UI enhancements
-	setTimeout(function() {
+	setTimeout(function () {
 		initFilters()
 		injectHyperlinks()
 		moveLangAndDirWarningsAndAddLinks()
 		replaceSuccessFailure()
+		attachSourceLinkHandlers()
 	}, 100)
+}
+
+/**
+ * Attach click handlers to source line links in multi-URL results
+ * to ensure the URL section is expanded before scrolling
+ */
+function attachSourceLinkHandlers() {
+	var multiUrlContainer = document.getElementById('multi-url-results')
+	if (!multiUrlContainer) return
+
+	// Find all URL sections
+	var urlSections = multiUrlContainer.querySelectorAll('.url-result-section')
+
+	urlSections.forEach(function (urlSection, urlIndex) {
+		// Find all links to source lines within this URL section's messages
+		var messagesSection = urlSection.querySelector('.messages-section')
+		if (!messagesSection) return
+
+		var sourceLinks = messagesSection.querySelectorAll('a[href^="#l"], a[href^="#cl"]')
+
+		sourceLinks.forEach(function (link) {
+			link.addEventListener('click', function (e) {
+				e.preventDefault()
+				var href = link.getAttribute('href')
+
+				// Check if the results content is collapsed and expand it if needed
+				var resultsContent = urlSection.querySelector('.url-results-content')
+				var toggleIcon = urlSection.querySelector('.toggle-icon')
+
+				if (resultsContent && resultsContent.classList.contains('collapsed')) {
+					// Expand the section
+					resultsContent.classList.remove('collapsed')
+					if (toggleIcon) {
+						toggleIcon.textContent = '▼'
+					}
+				}
+
+				// Wait a moment for the expansion animation, then scroll
+				setTimeout(function () {
+					var sourceElement = urlSection.querySelector(href)
+					if (sourceElement) {
+						sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+						// Update the hash to trigger highlighting
+						window.location.hash = href
+					}
+				}, 100)
+			})
+		})
+	})
 }
