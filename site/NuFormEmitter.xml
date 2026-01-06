@@ -11,13 +11,19 @@
 			><label title="Display the markup source of the input document." for='showsource'
 			><?SaxCompiler-code t.emitShowSourceField();
 			?>source</label
-			><label title="Display an outline of the input document." for='showoutline'
+			>
+			<!-- Remove "outline" option from checkboxgroup -->
+			<!-- <label title="Display an outline of the input document." for='showoutline'
 			><?SaxCompiler-code t.emitShowOutlineField();
 			?>outline</label
-			><label title="Display a report about the textual alternatives for images." for='showimagereport'
+			> -->
+			<!-- Remove "image report" option from checkboxgroup -->
+			<!-- <label title="Display a report about the textual alternatives for images." for='showimagereport'
 			><?SaxCompiler-code t.emitShowImageReportField();
-			?>image report</label
-			><label title="Show only errors and warnings (no informational messages)." for='level'
+			?>image report</label> -->
+
+
+			<label title="Show only errors and warnings (no informational messages)." for='level'
 			><?SaxCompiler-code t.emitWarningsOnlyField();
 			?>errors &amp; warnings only</label
 			><label title="Show duplicate errors/warnings section (and hide them in individual URL results)." for='showduplicates'
