@@ -2306,9 +2306,9 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		urlHeader.appendChild(urlText)
 		urlHeader.appendChild(countText)
 		
-		// Results content (initially visible)
+		// Results content (initially collapsed by default)
 		var resultsContent = createHtmlElement('div')
-		resultsContent.className = 'url-results-content'
+		resultsContent.className = 'url-results-content collapsed'
 		
 		if (urlResult.error) {
 			var errorMsg = createHtmlElement('p')
@@ -2350,15 +2350,17 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		}
 		
 		// Toggle functionality
-		var isExpanded = true
+		var isExpanded = false
 		urlHeader.onclick = function() {
 			isExpanded = !isExpanded
 			if (isExpanded) {
 				resultsContent.className = 'url-results-content'
+				toggleIcon.textContent = '▼'
 				toggleIcon.style.transform = 'rotate(0deg)'
 			} else {
 				resultsContent.className = 'url-results-content collapsed'
-				toggleIcon.style.transform = 'rotate(-90deg)'
+				toggleIcon.textContent = '▶'
+				toggleIcon.style.transform = 'rotate(0deg)'
 			}
 		}
 		
