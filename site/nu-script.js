@@ -66,6 +66,7 @@ function reboot() {
 	moveLangAndDirWarningsAndAddLinks()
 	replaceSuccessFailure()
 	hideSourceIfNotRequested()
+	initLocalProxyInput()
 }
 
 function installDynamicStyle() {
@@ -306,6 +307,216 @@ function initCookieInput() {
 			localStorage['customCookie'] = e.target.value
 		}
 	}, false)
+}
+
+var localProxyUrl = null
+var localProxyAvailable = false
+
+function initLocalProxyInput() {
+	var form = document.forms[0]
+	if (!form) return
+
+	// Create proxy checkbox
+	var proxyCheckbox = createHtmlElement('input')
+	proxyCheckbox.type = 'checkbox'
+	proxyCheckbox.id = 'enable-local-proxy'
+	proxyCheckbox.name = 'enable-local-proxy'
+
+	// Create proxy config div
+	var proxyConfigDiv = createHtmlElement('div')
+	proxyConfigDiv.id = 'local-proxy-config'
+	proxyConfigDiv.style.display = 'none'
+	proxyConfigDiv.style.marginTop = '10px'
+	proxyConfigDiv.style.padding = '10px'
+	proxyConfigDiv.style.border = '1px solid #ddd'
+	proxyConfigDiv.style.borderRadius = '3px'
+	proxyConfigDiv.style.backgroundColor = '#f9f9f9'
+
+	// Proxy URL input
+	var proxyUrlLabel = createHtmlElement('label')
+	proxyUrlLabel.textContent = 'Local Proxy URL: '
+	proxyUrlLabel.style.display = 'block'
+	proxyUrlLabel.style.marginBottom = '5px'
+	proxyUrlLabel.style.fontWeight = 'bold'
+	
+	var proxyUrlInput = createHtmlElement('input')
+	proxyUrlInput.type = 'text'
+	proxyUrlInput.id = 'local-proxy-url'
+	proxyUrlInput.name = 'local-proxy-url'
+	proxyUrlInput.placeholder = 'http://YOUR_LOCAL_IP:3000'
+	proxyUrlInput.style.width = '100%'
+	proxyUrlInput.style.marginBottom = '10px'
+
+	// Status indicator
+	var statusDiv = createHtmlElement('div')
+	statusDiv.id = 'proxy-status'
+	statusDiv.style.padding = '8px'
+	statusDiv.style.marginTop = '10px'
+	statusDiv.style.borderRadius = '3px'
+	statusDiv.style.fontSize = '0.9em'
+	statusDiv.innerHTML = '⏳ Status: Not checked'
+	statusDiv.style.backgroundColor = '#f0f0f0'
+
+	// Test connection button
+	var testButton = createHtmlElement('button')
+	testButton.type = 'button'
+	testButton.textContent = 'Test Connection'
+	testButton.style.marginTop = '10px'
+	testButton.style.padding = '5px 15px'
+	testButton.style.cursor = 'pointer'
+
+	// Help text
+	var helpText = createHtmlElement('p')
+	helpText.style.fontSize = '0.85em'
+	helpText.style.color = '#666'
+	helpText.style.marginTop = '10px'
+	helpText.style.marginBottom = '0'
+	helpText.innerHTML = '<strong>Note:</strong> Run local proxy server on your whitelisted machine. ' +
+		'Enter your local IP address (e.g., http://192.168.1.100:3000)'
+
+	proxyConfigDiv.appendChild(proxyUrlLabel)
+	proxyConfigDiv.appendChild(proxyUrlInput)
+	proxyConfigDiv.appendChild(testButton)
+	proxyConfigDiv.appendChild(statusDiv)
+	proxyConfigDiv.appendChild(helpText)
+
+	// Create main label
+	var proxyLabel = createHtmlElement('label')
+	proxyLabel.setAttribute('for', 'enable-local-proxy')
+	proxyLabel.appendChild(proxyCheckbox)
+	proxyLabel.appendChild(document.createTextNode(' Use Local Proxy (for IP-restricted sites)'))
+
+	// Create container
+	var proxyContainer = createHtmlElement('div')
+	proxyContainer.id = 'local-proxy-container'
+	proxyContainer.style.marginTop = '10px'
+	proxyContainer.style.marginBottom = '10px'
+	proxyContainer.appendChild(proxyLabel)
+	proxyContainer.appendChild(proxyConfigDiv)
+
+	// Insert before cookie container or inputregion
+	var cookieContainer = document.getElementById('cookie-container')
+	var inputRegionElement = document.getElementById('inputregion')
+	
+	if (cookieContainer && cookieContainer.parentNode) {
+		cookieContainer.parentNode.insertBefore(proxyContainer, cookieContainer)
+	} else if (inputRegionElement && inputRegionElement.parentNode) {
+		inputRegionElement.parentNode.insertBefore(proxyContainer, inputRegionElement)
+	}
+
+	// Load saved config from localStorage
+	if (supportsLocalStorage()) {
+		if (localStorage['localProxyUrl']) {
+			proxyUrlInput.value = localStorage['localProxyUrl']
+		}
+		if (localStorage['enableLocalProxy'] === 'yes') {
+			proxyCheckbox.checked = true
+			proxyConfigDiv.style.display = 'block'
+			// Auto-test connection on load
+			setTimeout(function() {
+				testProxyConnection(proxyUrlInput.value, statusDiv)
+			}, 500)
+		}
+	}
+
+	// Toggle config visibility
+	proxyCheckbox.addEventListener('change', function (e) {
+		if (e.target.checked) {
+			proxyConfigDiv.style.display = 'block'
+			if (supportsLocalStorage()) {
+				localStorage['enableLocalProxy'] = 'yes'
+			}
+		} else {
+			proxyConfigDiv.style.display = 'none'
+			localProxyAvailable = false
+			if (supportsLocalStorage()) {
+				localStorage['enableLocalProxy'] = 'no'
+			}
+		}
+	}, false)
+
+	// Save proxy URL
+	proxyUrlInput.addEventListener('input', function (e) {
+		if (supportsLocalStorage()) {
+			localStorage['localProxyUrl'] = e.target.value
+		}
+		localProxyAvailable = false // Reset status when URL changes
+	}, false)
+
+	// Test button handler
+	testButton.addEventListener('click', function() {
+		var url = proxyUrlInput.value.trim()
+		if (!url) {
+			updateProxyStatus(statusDiv, 'error', '❌ Please enter proxy URL')
+			return
+		}
+		testProxyConnection(url, statusDiv)
+	}, false)
+}
+
+function testProxyConnection(proxyUrl, statusDiv) {
+	if (!proxyUrl) return
+	
+	updateProxyStatus(statusDiv, 'testing', '⏳ Testing connection...')
+	
+	var xhr = new XMLHttpRequest()
+	xhr.timeout = 5000
+	xhr.open('GET', proxyUrl + '/health', true)
+	
+	xhr.onload = function() {
+		if (xhr.status === 200) {
+			try {
+				var response = JSON.parse(xhr.responseText)
+				if (response.status === 'ok') {
+					localProxyUrl = proxyUrl
+					localProxyAvailable = true
+					updateProxyStatus(statusDiv, 'success', '✅ Connected! Proxy is available')
+				} else {
+					localProxyAvailable = false
+					updateProxyStatus(statusDiv, 'error', '❌ Invalid response from proxy')
+				}
+			} catch (e) {
+				localProxyAvailable = false
+				updateProxyStatus(statusDiv, 'error', '❌ Invalid response format')
+			}
+		} else {
+			localProxyAvailable = false
+			updateProxyStatus(statusDiv, 'error', '❌ Connection failed (HTTP ' + xhr.status + ')')
+		}
+	}
+	
+	xhr.onerror = function() {
+		localProxyAvailable = false
+		updateProxyStatus(statusDiv, 'error', '❌ Cannot connect to proxy. Make sure it\'s running.')
+	}
+	
+	xhr.ontimeout = function() {
+		localProxyAvailable = false
+		updateProxyStatus(statusDiv, 'error', '❌ Connection timeout')
+	}
+	
+	xhr.send()
+}
+
+function updateProxyStatus(statusDiv, type, message) {
+	statusDiv.textContent = message
+	if (type === 'success') {
+		statusDiv.style.backgroundColor = '#d4edda'
+		statusDiv.style.color = '#155724'
+		statusDiv.style.border = '1px solid #c3e6cb'
+	} else if (type === 'error') {
+		statusDiv.style.backgroundColor = '#f8d7da'
+		statusDiv.style.color = '#721c24'
+		statusDiv.style.border = '1px solid #f5c6cb'
+	} else if (type === 'testing') {
+		statusDiv.style.backgroundColor = '#fff3cd'
+		statusDiv.style.color = '#856404'
+		statusDiv.style.border = '1px solid #ffeaa7'
+	} else {
+		statusDiv.style.backgroundColor = '#f0f0f0'
+		statusDiv.style.color = '#666'
+		statusDiv.style.border = '1px solid #ddd'
+	}
 }
 
 function initWarningsOnly() {
@@ -1401,6 +1612,10 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 	var form = document.getElementsByTagName("form")[0]
 	if (!form) return
 
+	// Check if local proxy is enabled and available
+	var proxyCheckbox = document.getElementById('enable-local-proxy')
+	var useLocalProxy = proxyCheckbox && proxyCheckbox.checked && localProxyAvailable && localProxyUrl
+
 	// Get form parameters
 	var formData = new URLSearchParams()
 	formData.append('doc', url)
@@ -1433,7 +1648,13 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		formData.append('showduplicates', 'yes')
 	}
 
-	// Make AJAX request
+	// If using local proxy, fetch via proxy first
+	if (useLocalProxy) {
+		fetchViaLocalProxy(url, index, allResults, resultsDiv, formData)
+		return
+	}
+
+	// Make AJAX request (direct validation)
 	var xhr = new XMLHttpRequest()
 	var requestUrl = window.location.pathname + '?' + formData.toString()
 	xhr.open('GET', requestUrl, true)
@@ -1538,6 +1759,223 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 	}
 
 	xhr.send()
+}
+
+function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
+	// Step 1: Fetch URL content via local proxy
+	var fetchXhr = new XMLHttpRequest()
+	fetchXhr.open('POST', localProxyUrl + '/fetch-url', true)
+	fetchXhr.setRequestHeader('Content-Type', 'application/json')
+	fetchXhr.timeout = 30000
+
+	// Get custom headers if any
+	var customHeaders = {}
+	var cookieCheckbox = document.getElementById('enable-cookie')
+	var cookieTextarea = document.getElementById('cookie-input')
+	if (cookieCheckbox && cookieCheckbox.checked && cookieTextarea && cookieTextarea.value.trim()) {
+		customHeaders['Cookie'] = cookieTextarea.value.trim()
+	}
+
+	fetchXhr.onload = function() {
+		if (fetchXhr.status === 200) {
+			try {
+				var proxyResponse = JSON.parse(fetchXhr.responseText)
+				
+				if (proxyResponse.success) {
+					// Step 2: Send fetched content to validator
+					validateContent(proxyResponse.data, url, index, allResults, resultsDiv, formData)
+				} else {
+					// Proxy fetch failed
+					allResults.urls[index] = {
+						url: url,
+						results: null,
+						status: null,
+						error: 'Proxy fetch error: ' + (proxyResponse.error ?? 'Unknown error')
+					}
+					allResults.completed++
+					updateValidationProgress(allResults, resultsDiv)
+					if (allResults.completed === allResults.total) {
+						displayMultiUrlResults(allResults, resultsDiv)
+					}
+				}
+			} catch (e) {
+				allResults.urls[index] = {
+					url: url,
+					results: null,
+					status: null,
+					error: 'Invalid proxy response'
+				}
+				allResults.completed++
+				updateValidationProgress(allResults, resultsDiv)
+				if (allResults.completed === allResults.total) {
+					displayMultiUrlResults(allResults, resultsDiv)
+				}
+			}
+		} else {
+			allResults.urls[index] = {
+				url: url,
+				results: null,
+				status: null,
+				error: 'Proxy connection error: HTTP ' + fetchXhr.status
+			}
+			allResults.completed++
+			updateValidationProgress(allResults, resultsDiv)
+			if (allResults.completed === allResults.total) {
+				displayMultiUrlResults(allResults, resultsDiv)
+			}
+		}
+	}
+
+	fetchXhr.onerror = function() {
+		allResults.urls[index] = {
+			url: url,
+			results: null,
+			status: null,
+			error: 'Cannot connect to local proxy'
+		}
+		allResults.completed++
+		updateValidationProgress(allResults, resultsDiv)
+		if (allResults.completed === allResults.total) {
+			displayMultiUrlResults(allResults, resultsDiv)
+		}
+	}
+
+	fetchXhr.ontimeout = function() {
+		allResults.urls[index] = {
+			url: url,
+			results: null,
+			status: null,
+			error: 'Proxy request timeout'
+		}
+		allResults.completed++
+		updateValidationProgress(allResults, resultsDiv)
+		if (allResults.completed === allResults.total) {
+			displayMultiUrlResults(allResults, resultsDiv)
+		}
+	}
+
+	fetchXhr.send(JSON.stringify({
+		url: url,
+		headers: customHeaders
+	}))
+}
+
+function validateContent(content, originalUrl, index, allResults, resultsDiv, formData) {
+	var xhr = new XMLHttpRequest()
+	
+	// Use multipart/form-data to send content for validation
+	var formDataObj = new FormData()
+	
+	// Create a Blob from content and add as file
+	var blob = new Blob([content], { type: 'text/html' })
+	formDataObj.append('file', blob, 'document.html')
+	formDataObj.append('out', 'html')
+	
+	// Add other parameters
+	var entries = Array.from(formData.entries())
+	for (var i = 0; i < entries.length; i++) {
+		var pair = entries[i]
+		if (pair[0] !== 'doc' && pair[0] !== 'out') { // Skip doc and out parameters
+			formDataObj.append(pair[0], pair[1])
+		}
+	}
+	
+	xhr.open('POST', window.location.pathname, true)
+	// Don't set Content-Type header - browser will set it automatically with boundary for multipart/form-data
+
+	xhr.onload = function () {
+		if (xhr.status >= 200 && xhr.status < 400) {
+			// Parse response HTML
+			var parser = new DOMParser()
+			var doc = parser.parseFromString(xhr.responseText, 'text/html')
+
+			// Extract results
+			var resultsOl = doc.querySelector('#results > ol:first-child')
+			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
+
+			// Clone and update IDs to make them unique for multi-URL
+			var clonedResultsOl = null
+			if (resultsOl) {
+				clonedResultsOl = resultsOl.cloneNode(true)
+				// Update all message IDs to include URL index
+				var messages = clonedResultsOl.querySelectorAll('li[id^="vnuId"]')
+				messages.forEach(function (msg) {
+					if (msg.id) {
+						msg.setAttribute('data-original-id', msg.id)
+						msg.id = 'url' + index + '_' + msg.id
+					}
+				})
+			}
+
+			// Extract source code if available
+			var sourceHeading = doc.getElementById('source')
+			var sourceList = null
+			if (sourceHeading) {
+				var nextSibling = sourceHeading.nextSibling
+				while (nextSibling && nextSibling.nodeType != 1) {
+					nextSibling = nextSibling.nextSibling
+				}
+				if (nextSibling && nextSibling.className == 'source') {
+					sourceList = nextSibling.cloneNode(true)
+				}
+			}
+
+			allResults.urls[index] = {
+				url: originalUrl,
+				results: clonedResultsOl,
+				status: successFailure ? successFailure.cloneNode(true) : null,
+				sourceHeading: sourceHeading ? sourceHeading.cloneNode(true) : null,
+				sourceList: sourceList
+			}
+
+			allResults.completed++
+
+			// Update progress
+			updateValidationProgress(allResults, resultsDiv)
+
+			// If all URLs are validated, display results
+			if (allResults.completed === allResults.total) {
+				displayMultiUrlResults(allResults, resultsDiv)
+			}
+		} else {
+			// Error handling
+			allResults.urls[index] = {
+				url: originalUrl,
+				results: null,
+				status: null,
+				error: 'Validation error: HTTP ' + xhr.status
+			}
+
+			allResults.completed++
+
+			// Update progress
+			updateValidationProgress(allResults, resultsDiv)
+
+			if (allResults.completed === allResults.total) {
+				displayMultiUrlResults(allResults, resultsDiv)
+			}
+		}
+	}
+
+	xhr.onerror = function () {
+		allResults.urls[index] = {
+			url: originalUrl,
+			results: null,
+			status: null,
+			error: 'Validation network error'
+		}
+
+		allResults.completed++
+
+		// Update progress
+		updateValidationProgress(allResults, resultsDiv)
+
+		if (allResults.completed === allResults.total) {
+			displayMultiUrlResults(allResults, resultsDiv)
+		}
+	}
+
+	xhr.send(formDataObj)
 }
 
 function updateValidationProgress(allResults, resultsDiv) {
