@@ -19,6 +19,19 @@ app.use(cors({
 
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Local VPN Proxy Server is running',
+    endpoints: {
+      health: '/health',
+      fetch: '/fetch-url (POST)'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 

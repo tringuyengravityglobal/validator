@@ -459,16 +459,19 @@ function testProxyConnection(proxyUrl, statusDiv) {
 	
 	updateProxyStatus(statusDiv, 'testing', '⏳ Testing connection...')
 	
+	// Normalize URL: remove trailing slashes
+	var normalizedUrl = proxyUrl.trim().replace(/\/+$/, '')
+	
 	var xhr = new XMLHttpRequest()
 	xhr.timeout = 5000
-	xhr.open('GET', proxyUrl + '/health', true)
+	xhr.open('GET', normalizedUrl + '/health', true)
 	
 	xhr.onload = function() {
 		if (xhr.status === 200) {
 			try {
 				var response = JSON.parse(xhr.responseText)
 				if (response.status === 'ok') {
-					localProxyUrl = proxyUrl
+					localProxyUrl = normalizedUrl
 					localProxyAvailable = true
 					updateProxyStatus(statusDiv, 'success', '✅ Connected! Proxy is available')
 				} else {
@@ -1763,8 +1766,10 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 
 function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
 	// Step 1: Fetch URL content via local proxy
+	// Normalize URL: remove trailing slashes
+	var normalizedProxyUrl = localProxyUrl.trim().replace(/\/+$/, '')
 	var fetchXhr = new XMLHttpRequest()
-	fetchXhr.open('POST', localProxyUrl + '/fetch-url', true)
+	fetchXhr.open('POST', normalizedProxyUrl + '/fetch-url', true)
 	fetchXhr.setRequestHeader('Content-Type', 'application/json')
 	fetchXhr.timeout = 30000
 
