@@ -1659,8 +1659,11 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 
 	// Make AJAX request (direct validation)
 	var xhr = new XMLHttpRequest()
-	var requestUrl = window.location.pathname + '?' + formData.toString()
+	var requestUrl = window.location.pathname + '?' + formData.toString() + '&_t=' + Date.now()
 	xhr.open('GET', requestUrl, true)
+	xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
+	xhr.setRequestHeader('Pragma', 'no-cache')
+	xhr.setRequestHeader('Expires', '-1')
 
 	// Add custom cookie header if enabled
 	var cookieCheckbox = document.getElementById('enable-cookie')
@@ -1886,6 +1889,9 @@ function validateContent(content, originalUrl, index, allResults, resultsDiv, fo
 	}
 	
 	xhr.open('POST', window.location.pathname, true)
+	xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
+	xhr.setRequestHeader('Pragma', 'no-cache')
+	xhr.setRequestHeader('Expires', '-1')
 	// Don't set Content-Type header - browser will set it automatically with boundary for multipart/form-data
 
 	xhr.onload = function () {
