@@ -702,6 +702,7 @@ function getMessageCategory(messageText) {
 	return 'html'
 }
 
+
 function initFilters() {
 	var errors,
 		warnings,
