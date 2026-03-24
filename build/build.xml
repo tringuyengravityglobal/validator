@@ -151,11 +151,12 @@ DEALINGS IN THE SOFTWARE.
   <property name="jchardet-version" value="1.0" />
   <property name="log4j-version" value="1.2.17" />
   <property name="mail-version" value="1.4.7" />
-  <property name="salvation-version" value="3.0.1" />
+  <property name="htmlunit-csp-version" value="4.22.0" />
+  <property name="jacoco-version" value="0.8.14" />
   <target name="dl-deps" unless="${offline}">
     <echo>Downloading dependencies</echo>
     <get-and-checksum url="https://repo1.maven.org/maven2/com/ibm/icu/icu4j/${icu4j-version}/icu4j-${icu4j-version}.jar"/>
-    <get-and-checksum url="https://repo1.maven.org/maven2/com/shapesecurity/salvation2/${salvation-version}/salvation2-${salvation-version}.jar"/>
+    <get-and-checksum url="https://repo1.maven.org/maven2/org/htmlunit/htmlunit-csp/${htmlunit-csp-version}/htmlunit-csp-${htmlunit-csp-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/commons-codec/commons-codec/${commons-codec-version}/commons-codec-${commons-codec-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/org/apache/commons/commons-fileupload2-core/${commons-fileupload-version}/commons-fileupload2-core-${commons-fileupload-version}.jar"/>
     <get-and-checksum url="https://repo1.maven.org/maven2/org/apache/commons/commons-fileupload2-jakarta-servlet5/${commons-fileupload-version}/commons-fileupload2-jakarta-servlet5-${commons-fileupload-version}.jar"/>
@@ -201,13 +202,19 @@ DEALINGS IN THE SOFTWARE.
     <get-and-checksum url="https://repo1.maven.org/maven2/org/slf4j/slf4j-log4j12/${slf4j-log4j12-version}/slf4j-log4j12-${slf4j-log4j12-version}.jar"/>
   </target>
 
+  <target name="dl-deps-jacoco" unless="${offline}">
+    <echo>Downloading dependencies (JaCoCo)</echo>
+    <get-and-checksum url="https://repo1.maven.org/maven2/org/jacoco/org.jacoco.agent/${jacoco-version}/org.jacoco.agent-${jacoco-version}-runtime.jar"/>
+    <get-and-checksum url="https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${jacoco-version}/org.jacoco.cli-${jacoco-version}-nodeps.jar"/>
+  </target>
+
   <target name="dl-html5spec" unless="${offline}">
     <echo>Downloading latest html5 specification</echo>
     <mkdir dir="build/html5spec"/>
     <get src="https://html.spec.whatwg.org/" dest="build/html5spec/html5spec-single.html" usetimestamp="true" tryGzipEncoding="true"/>
   </target>
 
-  <target name="dl-all" depends="dl-deps, dl-deps-modules, dl-deps-jetty, dl-html5spec, dl-deps-antlib"/>
+  <target name="dl-all" depends="dl-deps, dl-deps-modules, dl-deps-jetty, dl-deps-jacoco, dl-html5spec, dl-deps-antlib"/>
 
   <target name="dl-clean">
     <echo>Remove ${depsDir}</echo>
@@ -284,7 +291,7 @@ DEALINGS IN THE SOFTWARE.
         <exclude name="module-info.class" />
       </zipfileset>
       <zipfileset src="${depsDir}/log4j-${log4j-version}.jar" unless:true="${jar-without-deps}"/>
-      <zipfileset src="${depsDir}/salvation2-${salvation-version}.jar" unless:true="${jar-without-deps}"/>
+      <zipfileset src="${depsDir}/htmlunit-csp-${htmlunit-csp-version}.jar" unless:true="${jar-without-deps}"/>
       <!-- module dependencies -->
       <!-- isorelax.jar classes are now included in jing-shaded.jar to avoid Maven conflicts -->
       <zipfileset src="${depsDir}/avalon-framework-api-${avalon-framework-api-version}.jar" unless:true="${jar-without-deps}"/>
@@ -333,7 +340,7 @@ DEALINGS IN THE SOFTWARE.
       <lib file="${depsDir}/commons-logging-${commons-logging-version}-api.jar"/>
       <lib file="${depsDir}/commons-text-${commons-text-version}.jar"/>
       <lib file="${depsDir}/icu4j-${icu4j-version}.jar"/>
-      <lib file="${depsDir}/salvation2-${salvation-version}.jar"/>
+      <lib file="${depsDir}/htmlunit-csp-${htmlunit-csp-version}.jar"/>
       <lib file="${depsDir}/jchardet-${jchardet-version}.jar"/>
       <lib file="${depsDir}/log4j-${log4j-version}.jar"/>
       <lib file="${depsDir}/slf4j-api-${slf4j-api-version}.jar"/>
@@ -366,7 +373,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="jetty-http-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-io-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="log4j-${log4j-version}.jar" />
-    <fileset dir="${depsDir}/" includes="salvation2-${salvation-version}.jar" />
+    <fileset dir="${depsDir}/" includes="htmlunit-csp-${htmlunit-csp-version}.jar" />
     <pathelement location="css-validator/css-validator.jar"/>
     <pathelement location="${jarsDir}/galimatias.jar"/>
     <pathelement location="${jarsDir}/htmlparser.jar"/>
@@ -477,7 +484,7 @@ DEALINGS IN THE SOFTWARE.
     <fileset dir="${depsDir}/" includes="jetty-util-${jetty-version}.jar" />
     <fileset dir="${depsDir}/" includes="jetty-jakarta-servlet-api-${jakarta.servlet-api-version}.jar" />
     <fileset dir="${depsDir}/" includes="log4j-${log4j-version}.jar" />
-    <fileset dir="${depsDir}/" includes="salvation2-${salvation-version}.jar" />
+    <fileset dir="${depsDir}/" includes="htmlunit-csp-${htmlunit-csp-version}.jar" />
     <pathelement location="css-validator/css-validator.jar"/>
     <pathelement location="${jarsDir}/galimatias.jar"/>
     <pathelement location="${jarsDir}/htmlparser.jar"/>
@@ -756,7 +763,7 @@ DEALINGS IN THE SOFTWARE.
         email="sideshowbarker@gmail.com"
         url="https://github.com/sideshowbarker"/>
       <dependency groupId="com.ibm.icu" artifactId="icu4j" version="${icu4j-version}"/>
-      <dependency groupId="com.shapesecurity" artifactId="salvation2" version="${salvation-version}"/>
+      <dependency groupId="org.htmlunit" artifactId="htmlunit-csp" version="${htmlunit-csp-version}"/>
       <dependency groupId="commons-codec" artifactId="commons-codec" version="${commons-codec-version}"/>
       <dependency groupId="org.apache.commons" artifactId="commons-fileupload2-core" version="${commons-fileupload-version}"/>
       <dependency groupId="org.apache.commons" artifactId="commons-fileupload2-jakarta-servlet5" version="${commons-fileupload-version}"/>

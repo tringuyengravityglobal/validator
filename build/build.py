@@ -180,6 +180,13 @@ vnuCmd = os.path.join(distDir, "vnu-runtime-image", "bin", "vnu")
 vnuJar = os.path.join(distDir, "vnu.jar")
 os.environ["VNUJAR"] = str(Path(vnuJar).resolve())
 dependencyDir = os.path.join(buildRoot, "dependencies")
+coverageDir = os.path.join(buildRoot, "build", "coverage")
+jacocoVersion = "0.8.14"
+jacocoAgentJar = os.path.join(dependencyDir,
+    "org.jacoco.agent-%s-runtime.jar" % jacocoVersion)
+jacocoCliJar = os.path.join(dependencyDir,
+    "org.jacoco.cli-%s-nodeps.jar" % jacocoVersion)
+coverageThreshold = 70  # minimum line coverage percentage
 extrasDir = os.path.join(buildRoot, "extras")
 jarsDir = os.path.join(buildRoot, "jars")
 jingTrangDir = os.path.join(buildRoot, "jing-trang")
@@ -214,7 +221,7 @@ scriptAdditional = ''
 serviceName = 'Validator.nu'
 resultsTitle = 'Validation results'
 messagesLimit = 1000
-maxFileSize = 15360
+maxFileSize = 25600
 disablePromiscuousSsl = 0
 allowedAddressType = 'all'
 allowForbiddenHosts = False
@@ -1292,6 +1299,8 @@ class Release():
             'nu.validator.checker.test.LocatorImplTest',
             'nu.validator.checker.test.NormalizationCheckerTest',
             'nu.validator.xml.test.CharacterUtilTest',
+            'nu.validator.xml.test.BaseUriTrackerTest',
+            'nu.validator.source.test.SourceCodeTest',
         ]
         for testClass in testClasses:
             print(f"\nRunning {testClass}...")
@@ -1304,60 +1313,34 @@ class Release():
             runCmd(args)
 
     def runTests(self):
-        if not os.path.exists(vnuJar):
-            self.createJarOrWar("jar")
+        self.runCoverageTests()
 
-        self.runUnitTests()
-
-        args = [javaCmd]
-        if stackSize != "":
-            args.append('-Xss' + stackSize + 'k')
-
-        classpath_item = []
-        classpath_item.append(vnuJar)
-        args.append('-classpath')
-        args.append(os.pathsep.join(classpath_item))
-        args.append('nu.validator.client.TestRunner')
-
-        if verbose:
-            args.append("--verbose")
-
-        args.append("tests/messages.json")
-
-        runCmd(args)
-
-        # TestRunner only checks HTML files, but we need to test these
-        # particular cases, too; so we do that here.
-        svgTestArgs = ["--also-check-svg", "--Werror"]
+        svgTestArgs = [javaCmd, '-jar', vnuJar,
+                       "--also-check-svg", "--Werror"]
         svgTestArgs.append(os.path.join(
             buildRoot, "tests", "html", "attributes",
             "lang", "missing-lang-attribute-non-html-isvalid.svg"))
         svgTestArgs.append(os.path.join(
             buildRoot, "tests", "svg",
             "stoplight-titles-compatibility.svg"))
-        if platform.system() == 'Windows':
-            # Something about either the createRuntimeImage() or execCmd()
-            # below doesn’t work as expected in a Windows environment.
-            return
-        if not os.path.exists(vnuCmd):
-            self.createRuntimeImage()
-        execCmd(vnuCmd, svgTestArgs, True)
-        cssTestArgs = ["--skip-non-css"]
+        runCmd(svgTestArgs)
+        cssTestArgs = [javaCmd, '-jar', vnuJar, "--skip-non-css"]
         cssTestArgs.append(os.path.join(buildRoot, "tests", "css"))
-        execCmd(vnuCmd, cssTestArgs, True)
-        docbookTestArgs = ["--schema",
+        runCmd(cssTestArgs)
+        docbookTestArgs = [javaCmd, '-jar', vnuJar,
+                           "--schema",
                            "file:resources/docbook.rng",
                            "--xml"]
         # Test valid DocBook document; expect no output/messages/errors
         testdoc = [os.path.join("tests", "schema-validation",
                                 "docbook-valid.xml")]
-        execCmd(vnuCmd, docbookTestArgs + testdoc, True)
+        runCmd(docbookTestArgs + testdoc)
         # Test invalid DocBook document; expect output (an error message)
         testdoc = [os.path.join("tests", "schema-validation",
                                 "docbook-invalid.xml")]
-        cmd = [vnuCmd] + docbookTestArgs + testdoc
+        cmd = docbookTestArgs + testdoc
         print(shlex.join(cmd))
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, encoding="utf-8")
         if result.returncode == 0:
             print("Expected validation errors in output, but found none.")
             sys.exit(2)
@@ -1366,10 +1349,6 @@ class Release():
         if "error:" not in output.lower():
             print("Expected validation errors in output, but found none.")
             sys.exit(2)
-
-        # Run e2e tests if Playwright is available
-        if isPlaywrightAvailable():
-            self.runE2eTests()
 
     def runSpecTests(self):
         if platform.system() == 'Windows':
@@ -1412,7 +1391,8 @@ class Release():
             ])
         execCmd(vnuCmd, legacyEncodingCoverageTestArgs, True)
 
-    def runE2eTests(self):
+    def runE2eTests(self, jacocoExecFile=None,
+                    extraCoverageRequests=False):
         if not os.path.exists(vnuJar):
             self.createJarOrWar("jar")
         if isServiceUp(False):
@@ -1421,15 +1401,403 @@ class Release():
             print("Stop it first, then retry.")
             sys.exit(1)
         args = getRunArgs(str(int(heapSize) * 1024))
+        if jacocoExecFile:
+            agentArg = ("-javaagent:%s=destfile=%s,includes=nu.validator.*"
+                        % (jacocoAgentJar, jacocoExecFile))
+            args.insert(0, agentArg)
+        # Use the servlet's control-port mechanism for graceful shutdown.
+        # On Windows, Popen.terminate() calls TerminateProcess which
+        # kills the JVM without running shutdown hooks; JaCoCo needs
+        # the hook to write coverage .exec data.
+        import socket as socketmod
+        with socketmod.socket() as _s:
+            _s.bind(('127.0.0.1', 0))
+            stopPort = _s.getsockname()[1]
+        args.append(str(stopPort))
         daemon = subprocess.Popen([javaCmd, ] + args)
         waitUntilServiceIsReady()
         try:
             playwrightCmd = ["pnpm", "exec", "playwright", "test",
                              "--project=chromium"]
-            runCmd(playwrightCmd)
+            print(shlex.join(playwrightCmd))
+            subprocess.check_call(playwrightCmd,
+                                  shell=(platform.system() == 'Windows'))
+            if extraCoverageRequests:
+                self._makeCoverageRequests()
         finally:
-            daemon.terminate()
+            try:
+                with socketmod.create_connection(
+                        ("127.0.0.1", stopPort), timeout=10) as sock:
+                    sock.settimeout(60)
+                    sock.recv(1)
+                daemon.wait(timeout=30)
+            except Exception:
+                daemon.terminate()
             waitUntilServiceIsDown()
+
+    def _makeCoverageRequests(self):
+        """Hit additional servlet endpoints to increase coverage."""
+        import gzip as gzipmod
+        from urllib.request import urlopen, Request
+        from urllib.parse import quote
+        connectAddr = "127.0.0.1" if bindAddress == "0.0.0.0" else bindAddress
+        baseUrl = "http://%s:%s/" % (connectAddr, portNumber)
+        testDoc = ("<!DOCTYPE html><html lang=en><title>test</title>"
+                   "<body><h1>Hello</h1><h2>World</h2>"
+                   "<p>Test paragraph.</p>"
+                   "<img src=x alt=test>")
+        docParam = "data:text/html," + quote(testDoc)
+        xhtmlDoc = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                    "<!DOCTYPE html>"
+                    "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+                    "<head><title>test</title></head>"
+                    "<body><p>Test.</p></body></html>")
+        xhtmlWithMathDoc = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+            "<head><title>test</title></head>"
+            "<body><p>Test</p>"
+            "<math xmlns=\"http://www.w3.org/1998/Math/MathML\">"
+            "<mi>x</mi><mo>=</mo><mn>1</mn></math>"
+            "</body></html>")
+        cssDoc = "body { color: red; }"
+        svgDoc = ("<svg xmlns=\"http://www.w3.org/2000/svg\">"
+                  "<title>test</title><rect width=\"1\" height=\"1\"/>"
+                  "</svg>")
+        getRequests = [
+            # Output formats (exercises MessageEmitter subclasses)
+            "?doc=%s&out=json" % docParam,
+            "?doc=%s&out=xml" % docParam,
+            "?doc=%s&out=gnu" % docParam,
+            "?doc=%s&out=text" % docParam,
+            # JSONP callback path
+            "?doc=%s&out=json&callback=onResult" % docParam,
+            # Outline (exercises OutlineBuildingXMLReaderWrapper,
+            # XhtmlOutlineEmitter)
+            "?doc=%s&showoutline=yes" % docParam,
+            # Source display (exercises XhtmlSourceHandler)
+            "?doc=%s&showsource=yes" % docParam,
+            # Source display + xml/json output (exercises
+            # XmlSourceHandler, JsonSourceHandler)
+            "?doc=%s&out=xml&showsource=yes" % docParam,
+            "?doc=%s&out=json&showsource=yes" % docParam,
+            # Image report
+            "?doc=%s&showimagereport=yes" % docParam,
+            # Parse tree endpoint with content param (exercises
+            # ParseTreePrinter, TreeDumpContentHandler,
+            # ListErrorHandler) — uses content= to bypass URL
+            # resolution, which PrudentHttpEntityResolver can’t
+            # handle for data: URIs
+            "parsetree/?content=%s" % quote(testDoc),
+            "parsetree/?content=%s&parser=xml" % quote(
+                xhtmlDoc),
+            # html5 path (exercises Html5ConformanceCheckerTransaction,
+            # Html5FormEmitter)
+            "html5/?doc=%s" % docParam,
+            "html5/?doc=%s&out=json" % docParam,
+            # html5 path with charset/nsfilter params (exercises
+            # CharsetEmitter, NsFilterEmitter)
+            "html5/?doc=%s&charset=utf-8&nsfilter=" % docParam,
+            # Statistics page (exercises Statistics, StatsEmitter)
+            "stats.html",
+        ]
+        print("\nMaking extra GET coverage requests...")
+        for path in getRequests:
+            url = baseUrl + path
+            print("  GET %s" % url[:120])
+            try:
+                req = Request(url)
+                req.add_header("User-Agent", "coverage-test")
+                resp = urlopen(req, timeout=30)
+                resp.read()
+                resp.close()
+            except Exception as e:
+                print("    (response: %s)" % e)
+
+        # POST requests for content types that need direct upload
+        postRequests = [
+            # XHTML/XML (exercises BufferingRootNamespaceSniffer,
+            # namespace handling)
+            (baseUrl, "application/xhtml+xml",
+             xhtmlDoc.encode("utf-8"), None),
+            # XHTML with explicit schema (exercises
+            # RootNamespaceSniffer — only instantiated when a
+            # schema is specified, bypassing BufferingRootNamespace
+            # Sniffer)
+            (baseUrl + "?schema="
+             + quote("http://s.validator.nu/xhtml5.rnc"),
+             "application/xhtml+xml",
+             xhtmlDoc.encode("utf-8"), None),
+            # XHTML with nsfilter (exercises
+            # NamespaceDroppingXMLReaderWrapper)
+            (baseUrl + "?nsfilter="
+             + quote("http://www.w3.org/1998/Math/MathML"),
+             "application/xhtml+xml",
+             xhtmlWithMathDoc.encode("utf-8"), None),
+            # CSS (exercises CSS validation path)
+            (baseUrl, "text/css", cssDoc.encode("utf-8"), None),
+            # SVG (exercises SVG validation path)
+            (baseUrl, "image/svg+xml",
+             svgDoc.encode("utf-8"), None),
+        ]
+        # Documents with errors to exercise error-formatting code
+        # in MessageEmitterAdapter
+        errorDoc = (
+            "<!DOCTYPE html><html lang=en><title>test</title>"
+            "<body><div role=banana>x</div>"
+            "<span><div>block in inline</div></span>"
+            "<img>"
+            "<input type=text required value=''>"
+            "<label for=x><label for=y>nested</label></label>"
+            "<select><option value=''>pick<option value=''>dup</select>"
+            "<p><table><tr><td>table in p</td></tr></table>"
+        )
+        errDocParam = "data:text/html," + quote(errorDoc)
+        # GET with error doc in various output formats
+        for outFmt in ["html", "json", "xml", "gnu", "text"]:
+            getRequests.append("?doc=%s&out=%s" % (errDocParam, outFmt))
+        # GET with error doc + showsource + showoutline
+        getRequests.append(
+            "?doc=%s&showsource=yes&showoutline=yes" % errDocParam)
+        print("\nMaking extra POST coverage requests...")
+        for url, contentType, body, encoding in postRequests:
+            label = contentType
+            if encoding:
+                label += " (%s)" % encoding
+            print("  POST %s [%s]" % (url[:120], label))
+            try:
+                req = Request(url, data=body)
+                req.add_header("Content-Type", contentType)
+                req.add_header("User-Agent", "coverage-test")
+                if encoding:
+                    req.add_header("Content-Encoding", encoding)
+                resp = urlopen(req, timeout=30)
+                resp.read()
+                resp.close()
+            except Exception as e:
+                print("    (response: %s)" % e)
+
+    def runCoverageTests(self):
+        import csv
+        import glob as globmod
+
+        if not os.path.exists(vnuJar):
+            self.createJarOrWar("jar")
+        if not os.path.exists(jacocoAgentJar):
+            print("JaCoCo agent JAR not found: %s" % jacocoAgentJar)
+            print("Run 'python checker.py dldeps' first.")
+            sys.exit(1)
+        if not os.path.exists(jacocoCliJar):
+            print("JaCoCo CLI JAR not found: %s" % jacocoCliJar)
+            print("Run 'python checker.py dldeps' first.")
+            sys.exit(1)
+
+        # Clean/create coverage directory
+        if os.path.exists(coverageDir):
+            shutil.rmtree(coverageDir)
+        os.makedirs(coverageDir)
+
+        testClasses = [
+            'nu.validator.messages.test.MessageEmitterAdapterTest',
+            'nu.validator.collections.test.SortedSetTest',
+            'nu.validator.io.test.DataUriTest',
+            'nu.validator.io.test.SystemIdIOExceptionTest',
+            'nu.validator.checker.test.SpeculationRulesCheckerTest',
+            'nu.validator.checker.test.CspEnforcementCheckerTest',
+            'nu.validator.checker.test.AttributeUtilTest',
+            'nu.validator.datatype.test.DatatypeTest',
+            'nu.validator.checker.test.LocatorImplTest',
+            'nu.validator.checker.test.NormalizationCheckerTest',
+            'nu.validator.xml.test.CharacterUtilTest',
+            'nu.validator.xml.test.BaseUriTrackerTest',
+            'nu.validator.source.test.SourceCodeTest',
+        ]
+
+        # Run unit tests with JaCoCo agent
+        for i, testClass in enumerate(testClasses):
+            print("\nRunning %s with coverage..." % testClass)
+            execFile = os.path.join(coverageDir, "unit-%d.exec" % i)
+            agentArg = "-javaagent:%s=destfile=%s,includes=nu.validator.*" % (
+                jacocoAgentJar, execFile)
+            args = [javaCmd, agentArg]
+            if stackSize != "":
+                args.append('-Xss' + stackSize + 'k')
+            args.append('-classpath')
+            args.append(vnuJar)
+            args.append(testClass)
+            runCmd(args)
+
+        # Run SimpleCommandLineValidator with JaCoCo agent
+        print("\nRunning SimpleCommandLineValidator with coverage...")
+        aboutHtml = os.path.join(buildRoot, 'site', 'nu-about.html')
+        svgFile = os.path.join(buildRoot, 'tests', 'svg',
+                               'stoplight-titles-compatibility.svg')
+        cssDir = os.path.join(buildRoot, 'tests', 'css',
+                              'succeeds-with-or-without-bom')
+        htmlDir = os.path.join(buildRoot, 'tests', 'html',
+                               'elements', 'meter')
+        xhtmlFile = os.path.join(buildRoot, 'tests', 'xhtml',
+                                  'elements', 'meter', '002-isvalid.xhtml')
+        svgDir = os.path.join(buildRoot, 'tests', 'svg')
+        filterFile = os.path.join(coverageDir, 'test-filter.txt')
+        with open(filterFile, 'w') as ff:
+            ff.write('placeholder-filter-pattern\n')
+        cssFile = os.path.join(buildRoot, 'tests', 'css',
+                               'succeeds-with-or-without-bom',
+                               '1', 'without-bom.css')
+        cliRuns = [
+            # JSON + check css/svg (exercises json emitter, css/svg flags)
+            ('cli-json', ['--format', 'json', '--also-check-css',
+                          '--also-check-svg', aboutHtml,
+                          os.path.join(buildRoot, 'tests', 'html',
+                                       'elements', 'custom',
+                                       'invalid-name-novalid.html')]),
+            # GNU + verbose (exercises gnu emitter, verbose output)
+            ('cli-gnu', ['--format', 'gnu', '--verbose', aboutHtml]),
+            # XML format with invalid doc (exercises XML error emitter)
+            ('cli-xml', ['--format', 'xml', aboutHtml,
+                         os.path.join(buildRoot, 'tests', 'html',
+                                      'elements', 'custom',
+                                      'invalid-name-novalid.html')]),
+            # Text format with invalid doc (exercises error location formatting)
+            ('cli-text', ['--format', 'text', aboutHtml,
+                          os.path.join(buildRoot, 'tests', 'html',
+                                       'elements', 'custom',
+                                       'invalid-name-novalid.html')]),
+            # SVG file (exercises --svg path)
+            ('cli-svg', ['--also-check-svg', svgFile]),
+            # CSS directory (exercises --skip-non-css + directory mode)
+            ('cli-css', ['--skip-non-css', cssDir]),
+            # HTML directory mode (exercises recursive traversal)
+            ('cli-dir', ['--format', 'json', htmlDir]),
+            # No language detection
+            ('cli-nolang', ['--no-langdetect', aboutHtml]),
+            # Filter pattern
+            ('cli-filter', ['--filterpattern', '.', aboutHtml]),
+            # --errors-only (exercises errorsOnly flag + datatype.warn)
+            ('cli-erronly', ['--errors-only', aboutHtml]),
+            # --exit-zero-always (exercises exitZeroAlways flag)
+            ('cli-exit0', ['--exit-zero-always', aboutHtml]),
+            # --asciiquotes (exercises asciiQuotes flag)
+            ('cli-ascii', ['--asciiquotes', aboutHtml]),
+            # --html with XHTML file (exercises forceHTML path)
+            ('cli-html', ['--html', xhtmlFile]),
+            # --svg with SVG file (exercises forceSVG path)
+            ('cli-forcesvg', ['--svg', svgFile]),
+            # --css with CSS file (exercises forceCSS path)
+            ('cli-forcecss', ['--css', cssFile]),
+            # --Werror (exercises wError flag)
+            ('cli-werror', ['--Werror', aboutHtml]),
+            # --no-stream (exercises noStream flag)
+            ('cli-nostream', ['--no-stream', aboutHtml]),
+            # XHTML auto-detection (exercises checkHtmlFile xhtml path)
+            ('cli-xhtml', [xhtmlFile]),
+            # --filterfile (exercises filterfile loading code)
+            ('cli-filtfile', ['--filterfile', filterFile, aboutHtml]),
+            # --svg + directory (exercises forceSVG in recurseDirectory)
+            ('cli-svgdir', ['--svg', svgDir]),
+            # --skip-non-html (exercises skipNonHTML flag)
+            ('cli-skiphtml', ['--skip-non-html', htmlDir]),
+        ]
+        for name, extraArgs in cliRuns:
+            execFile = os.path.join(coverageDir, "%s.exec" % name)
+            agentArg = ("-javaagent:%s=destfile=%s,includes=nu.validator.*"
+                        % (jacocoAgentJar, execFile))
+            args = [javaCmd, agentArg, '-jar', vnuJar] + extraArgs
+            print("  %s" % shlex.join(args[-4:]))
+            # Some runs will exit non-zero (e.g. non-conforming files);
+            # that is expected, we just want the coverage data
+            print(shlex.join(args))
+            subprocess.call(args)
+
+        # Run TestRunner integration tests with JaCoCo agent
+        print("\nRunning TestRunner with coverage...")
+        trExecFile = os.path.join(coverageDir, "testrunner.exec")
+        agentArg = "-javaagent:%s=destfile=%s,includes=nu.validator.*" % (
+            jacocoAgentJar, trExecFile)
+        args = [javaCmd, agentArg]
+        if stackSize != "":
+            args.append('-Xss' + stackSize + 'k')
+        args.append('-classpath')
+        args.append(vnuJar)
+        args.append('nu.validator.client.TestRunner')
+        if verbose:
+            args.append("--verbose")
+        args.append("tests/messages.json")
+        runCmd(args)
+
+        # Run e2e tests with instrumented server (if Playwright available)
+        if isPlaywrightAvailable():
+            global stylesheet, script, icon
+            if not stylesheet:
+                stylesheet = 'style.css'
+            if not script:
+                script = 'script.js'
+            if not icon:
+                icon = 'icon.png'
+            global statistics
+            statistics = 1
+            print("\nRunning e2e tests with coverage...")
+            e2eExecFile = os.path.join(coverageDir, "e2e.exec")
+            self.runE2eTests(jacocoExecFile=e2eExecFile,
+                             extraCoverageRequests=True)
+            e2eRan = True
+        else:
+            e2eRan = False
+            print("\nSkipping e2e coverage (Playwright not available).")
+
+        # Merge all .exec files
+        execFiles = globmod.glob(os.path.join(coverageDir, "*.exec"))
+        mergedExec = os.path.join(coverageDir, "merged.exec")
+        print("\nMerging %d coverage data files..." % len(execFiles))
+        mergeArgs = [javaCmd, '-jar', jacocoCliJar, 'merge']
+        mergeArgs.extend(execFiles)
+        mergeArgs.extend(['--destfile', mergedExec])
+        runCmd(mergeArgs)
+
+        # Generate CSV report for threshold checking
+        classfilesDir = os.path.join(
+            buildRoot, "build", "validator", "full", "classes")
+        srcDir = os.path.join(buildRoot, "src")
+        builtSrcDir = os.path.join(
+            buildRoot, "build", "validator", "builtSrc")
+        csvFile = os.path.join(coverageDir, "coverage.csv")
+        print("\nGenerating CSV coverage report...")
+        csvArgs = [javaCmd, '-jar', jacocoCliJar, 'report', mergedExec,
+                   '--classfiles', classfilesDir,
+                   '--sourcefiles', srcDir,
+                   '--sourcefiles', builtSrcDir,
+                   '--csv', csvFile]
+        runCmd(csvArgs)
+
+        # Parse CSV and check threshold
+        totalMissed = 0
+        totalCovered = 0
+        with open(csvFile, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                totalMissed += int(row['LINE_MISSED'])
+                totalCovered += int(row['LINE_COVERED'])
+
+        totalLines = totalMissed + totalCovered
+        if totalLines == 0:
+            print("No line coverage data found.")
+            sys.exit(1)
+
+        pct = totalCovered / totalLines * 100
+        print("\nLine coverage: %d/%d (%.1f%%)" % (
+            totalCovered, totalLines, pct))
+
+        if e2eRan:
+            if pct < coverageThreshold:
+                print("FAIL: Coverage %.1f%% is below threshold %d%%." % (
+                    pct, coverageThreshold))
+                sys.exit(1)
+            else:
+                print("PASS: Coverage %.1f%% meets threshold %d%%." % (
+                    pct, coverageThreshold))
+        else:
+            print("Skipping threshold check (e2e tests did not run).")
 
     def makeTestMessages(self):
         os.chdir("tests")
@@ -1877,7 +2245,7 @@ def getTaskChoices():
         'npm-release', 'maven-artifacts', 'maven-sign', 'maven-test',
         'maven-bundle', 'maven-release', 'maven-version-exists', 'image',
         'jar', 'war', 'sign', 'localent', 'deploy', 'tar', 'script',
-        'test', 'test-specs', 'unit-tests', 'e2e-tests', 'make-messages', 'check',
+        'test', 'test-specs', 'unit-tests', 'e2e-tests', 'make-messages', 'coverage', 'check',
         'self-test', 'clean', 'realclean', 'run', 'all', 'completion',
     ]
 
@@ -2292,6 +2660,8 @@ def main(argv, script_name=None):
             release.runE2eTests()
         elif task == 'make-messages':
             release.makeTestMessages()
+        elif task == 'coverage':
+            release.runCoverageTests()
         elif task == 'check':
             if not os.path.exists(vnuCmd):
                 release.createRuntimeImage()

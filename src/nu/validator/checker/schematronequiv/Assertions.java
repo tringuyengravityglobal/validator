@@ -243,8 +243,6 @@ public class Assertions extends Checker {
         OBSOLETE_ELEMENTS.put("noembed", "Use the “object” element instead.");
         OBSOLETE_ELEMENTS.put("param", "Use the “data” attribute of the “object” element to set the URL of the external resource.");
         OBSOLETE_ELEMENTS.put("plaintext", "Use the “text/plain” MIME type instead.");
-        OBSOLETE_ELEMENTS.put("rb", "");
-        OBSOLETE_ELEMENTS.put("rtc", "");
         OBSOLETE_ELEMENTS.put("strike", "Use “del” or “s” element instead.");
         OBSOLETE_ELEMENTS.put("xmp", "Use “pre” or “code” element instead.");
         OBSOLETE_ELEMENTS.put("basefont", "Use CSS instead.");
@@ -557,6 +555,9 @@ public class Assertions extends Checker {
                     "textarea", "details", "form", "iframe", "object", "map",
                     "meta", "slot");
 
+    private static final Set<String> SECTIONING_ELEMENTS =
+            Set.of("article", "aside", "main", "nav", "section");
+
     private static Map<String, Integer> ANCESTOR_MASK_BY_DESCENDANT = new HashMap<>();
 
     private static void registerProhibitedAncestor(String ancestor,
@@ -726,7 +727,6 @@ public class Assertions extends Checker {
         ELEMENTS_WITH_IMPLICIT_ROLE.put("fieldset", "group");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("figure", "figure");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("form", "form");
-        ELEMENTS_WITH_IMPLICIT_ROLE.put("footer", "contentinfo");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("h1", "heading");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("h2", "heading");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("h3", "heading");
@@ -734,7 +734,6 @@ public class Assertions extends Checker {
         ELEMENTS_WITH_IMPLICIT_ROLE.put("h5", "heading");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("h6", "heading");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("hr", "separator");
-        ELEMENTS_WITH_IMPLICIT_ROLE.put("header", "banner");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("img", "img");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("li", "listitem");
         ELEMENTS_WITH_IMPLICIT_ROLE.put("link", "link");
@@ -889,6 +888,14 @@ public class Assertions extends Checker {
     private static final String[] EXTERNAL_RESOURCE_LINK_REL = new String[] {
             "dns-prefetch", "icon", "manifest", "modulepreload", "pingback", "preconnect", "prefetch", "preload", "prerender", "stylesheet"
     };
+
+    private static final Set<String> PRELOAD_DESTINATIONS = new HashSet<>(
+            Arrays.asList("fetch", "font", "image", "script", "style",
+                    "track"));
+
+    private static final Set<String> MODULE_PRELOAD_DESTINATIONS = new HashSet<>(
+            Arrays.asList("audioworklet", "json", "paintworklet", "script",
+                    "serviceworker", "sharedworker", "style", "worker"));
 
     private static final Set<String> HTML_ELEMENTS = new HashSet<>(Arrays.asList(
             "a", "abbr", "acronym", "address", "annotation-xml", "applet", "area",
@@ -1077,6 +1084,16 @@ public class Assertions extends Checker {
         private boolean emptyValueOptionFound = false;
 
         private boolean isCollectingCharacters = false;
+
+        private boolean hasTabularRubyMarkup = false;
+
+        private boolean legendFound = false;
+
+        private boolean savedAutofocus = false;
+
+        private boolean isAutofocusScopingRoot = false;
+
+        private int consecutiveRbCount = 0;
 
         private Locator captionNestedInFigure;
 
@@ -1298,6 +1315,30 @@ public class Assertions extends Checker {
             this.headingFound = true;
         }
 
+        public boolean hasLegend() {
+            return legendFound;
+        }
+
+        public void setLegendFound() {
+            this.legendFound = true;
+        }
+
+        public boolean getSavedAutofocus() {
+            return savedAutofocus;
+        }
+
+        public void setSavedAutofocus(boolean val) {
+            this.savedAutofocus = val;
+        }
+
+        public boolean isAutofocusScopingRoot() {
+            return isAutofocusScopingRoot;
+        }
+
+        public void setAutofocusScopingRoot() {
+            this.isAutofocusScopingRoot = true;
+        }
+
         /**
          * Returns the imagesLackingAlt
          *
@@ -1461,6 +1502,26 @@ public class Assertions extends Checker {
             collectedChildren.add(node);
         }
 
+        public boolean hasTabularRubyMarkup() {
+            return hasTabularRubyMarkup;
+        }
+
+        public void setTabularRubyMarkup() {
+            this.hasTabularRubyMarkup = true;
+        }
+
+        public int getConsecutiveRbCount() {
+            return consecutiveRbCount;
+        }
+
+        public void incrementConsecutiveRbCount() {
+            this.consecutiveRbCount++;
+        }
+
+        public void resetConsecutiveRbCount() {
+            this.consecutiveRbCount = 0;
+        }
+
         public List<StackNode> getCollectedChildren() {
             return collectedChildren == null ? Collections.emptyList()
                     : collectedChildren;
@@ -1470,6 +1531,8 @@ public class Assertions extends Checker {
     private StackNode[] stack;
 
     private int currentPtr;
+
+    private int currentRubyPtr = -1;
 
     public Assertions() {
         super();
@@ -1689,6 +1752,16 @@ public class Assertions extends Checker {
                                 .get(openElementName), role) >= 0) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean isDescendantOfSectioningElement() {
+        for (int i = 0; i < currentPtr; i++) {
+            String name = stack[currentPtr - i].getName();
+            if (name != null && SECTIONING_ELEMENTS.contains(name)) {
+                return true;
             }
         }
         return false;
@@ -1914,9 +1987,23 @@ public class Assertions extends Checker {
                 }
             } else if ("picture" == localName) {
                 siblingSources.clear();
-            } else if ("dialog" == localName
-                    || node.atts.getIndex("", "popover") > -1) {
-                hasAutofocus = false;
+            } else if ("ruby" == localName) {
+                if (node.hasTabularRubyMarkup()) {
+                    info("Not all browsers position items appropriately"
+                            + " when \"tabular markup\" is used with"
+                            + " the “rb” element."
+                            + " See https://www.w3.org/International/articles"
+                            + "/ruby/markup.en.html#visual for more guidance.");
+                }
+                currentRubyPtr = -1;
+            } else if (node.isAutofocusScopingRoot()) {
+                hasAutofocus = node.getSavedAutofocus();
+            } else if ("optgroup" == localName
+                    && !node.hasLegend()
+                    && node.atts.getIndex("", "label") < 0) {
+                err("An “optgroup” element with no child"
+                        + " “legend” element must have a"
+                        + " “label” attribute.");
             } else if ("select" == localName && node.isOptionNeeded()) {
                 if (!node.hasOption()) {
                     err("A “select” element with a"
@@ -2196,7 +2283,7 @@ public class Assertions extends Checker {
         try {
             URL.parse(value);
             return true;
-        } catch (GalimatiasParseException e) {
+        } catch (GalimatiasParseException | StringIndexOutOfBoundsException e) {
         }
 
         if (value.startsWith("/") || value.startsWith("./")
@@ -2204,7 +2291,7 @@ public class Assertions extends Checker {
             try {
                 URL.parse("https://example.com/" + value);
                 return true;
-            } catch (GalimatiasParseException e) {
+            } catch (GalimatiasParseException | StringIndexOutOfBoundsException e) {
             }
         }
 
@@ -2979,8 +3066,11 @@ public class Assertions extends Checker {
             if ("figure" == localName) {
                 currentFigurePtr = currentPtr + 1;
             }
+            if ("ruby" == localName) {
+                currentRubyPtr = currentPtr + 1;
+            }
             if ("caption" == localName && "table" == parentName
-                    && stack.length >= currentPtr - 1
+                    && currentPtr > 1
                     && "figure" == stack[currentPtr - 1].getName()) {
                 stack[currentPtr - 1].setCaptionNestedInFigure(
                         new LocatorImpl(getDocumentLocator()));
@@ -3021,6 +3111,11 @@ public class Assertions extends Checker {
                 stack[currentHeadingPtr].setImgFound();
             }
 
+            if ("legend" == localName
+                    && "optgroup".equals(parent.name)) {
+                parent.setLegendFound();
+            }
+
             if ("option" == localName && !parent.hasOption()) {
                 if (atts.getIndex("", "aria-selected") > -1
                         && !"".equals(atts.getValue("", "aria-selected"))) {
@@ -3046,6 +3141,26 @@ public class Assertions extends Checker {
                 }
                 err("The “" + localName + "” element is obsolete."
                         + suggestion);
+            }
+
+            if ("rb".equals(localName) && currentRubyPtr > 0
+                    && currentRubyPtr < stack.length) {
+                StackNode rubyNode = stack[currentRubyPtr];
+                rubyNode.incrementConsecutiveRbCount();
+                if (rubyNode.getConsecutiveRbCount() > 1) {
+                    rubyNode.setTabularRubyMarkup();
+                }
+            }
+            if ("rt".equals(localName) && currentRubyPtr > 0
+                    && currentRubyPtr < stack.length) {
+                stack[currentRubyPtr].resetConsecutiveRbCount();
+            }
+
+            if ("rtc".equals(localName)) {
+                info("Not all browsers position items appropriately"
+                        + " when the “rtc” element is used."
+                        + " See https://www.w3.org/International/articles"
+                        + "/ruby/markup.en.html#visual for more guidance.");
             }
 
             // Exclusions
@@ -4169,6 +4284,28 @@ public class Assertions extends Checker {
                             + " value “preload” or the value"
                             + " “modulepreload”.");
                 }
+                if (atts.getIndex("", "as") > -1
+                        && relList.contains("preload")
+                        && !PRELOAD_DESTINATIONS.contains(
+                                atts.getValue("", "as"))) {
+                    err("The value “"
+                            + atts.getValue("", "as") + "”"
+                            + " is not a valid value for"
+                            + " the “as” attribute of a"
+                            + " “link” element with"
+                            + " “rel=preload”.");
+                }
+                if (atts.getIndex("", "as") > -1
+                        && relList.contains("modulepreload")
+                        && !MODULE_PRELOAD_DESTINATIONS.contains(
+                                atts.getValue("", "as"))) {
+                    err("The value “"
+                            + atts.getValue("", "as") + "”"
+                            + " is not a valid value for"
+                            + " the “as” attribute of a"
+                            + " “link” element with"
+                            + " “rel=modulepreload”.");
+                }
                 if (atts.getIndex("", "integrity") > -1
                         && (!(relList.contains("stylesheet")
                                 || relList.contains("preload")
@@ -4344,9 +4481,35 @@ public class Assertions extends Checker {
                         + " specified on elements that have a"
                         + " “placeholder” attribute.");
             }
+            // Warnings for presentational roles that conflict with
+            // focusability or global ARIA attributes (ARIA spec 9.3).
+            if (("none".equals(role) || "presentation".equals(role))
+                    && (tabindex || hasAriaAttributesOtherThanAriaHidden)) {
+                String reason;
+                if (tabindex && hasAriaAttributesOtherThanAriaHidden) {
+                    reason = "a “tabindex” attribute"
+                            + " and global ARIA attributes";
+                } else if (tabindex) {
+                    reason = "a “tabindex” attribute";
+                } else {
+                    reason = "global ARIA attributes";
+                }
+                warn("The “" + role + "” role does not"
+                        + " affect elements that have " + reason + ".");
+            }
             // Warnings for use of ARIA attributes with markup already
             // having implicit ARIA semantics.
-            if (ELEMENTS_WITH_IMPLICIT_ROLE.containsKey(localName)
+            if ("header".equals(localName)
+                    && "banner".equals(role)
+                    && !isDescendantOfSectioningElement()) {
+                warn("The “banner” role is unnecessary for"
+                        + " element “header”.");
+            } else if ("footer".equals(localName)
+                    && "contentinfo".equals(role)
+                    && !isDescendantOfSectioningElement()) {
+                warn("The “contentinfo” role is unnecessary"
+                        + " for element “footer”.");
+            } else if (ELEMENTS_WITH_IMPLICIT_ROLE.containsKey(localName)
                     && ELEMENTS_WITH_IMPLICIT_ROLE.get(localName).equals(
                             role)) {
                 if (!("img".equals(localName)
@@ -4559,6 +4722,38 @@ public class Assertions extends Checker {
             allIds.putAll(ids);
         }
 
+        // Presentational role conflict for non-HTML elements
+        // (the HTML check is inside the XHTML namespace block above)
+        if ("http://www.w3.org/2000/svg" == uri
+                && role != null
+                && ("none".equals(role) || "presentation".equals(role))) {
+            boolean svgTabindex = atts.getIndex("", "tabindex") > -1;
+            boolean svgHasGlobalAria = false;
+            for (int i = 0; i < atts.getLength(); i++) {
+                String attLocal = atts.getLocalName(i);
+                if (atts.getURI(i).length() == 0
+                        && attLocal.startsWith("aria-")
+                        && !"aria-hidden".equals(attLocal)
+                        && !"".equals(atts.getValue(i))) {
+                    svgHasGlobalAria = true;
+                    break;
+                }
+            }
+            if (svgTabindex || svgHasGlobalAria) {
+                String reason;
+                if (svgTabindex && svgHasGlobalAria) {
+                    reason = "a “tabindex” attribute"
+                            + " and global ARIA attributes";
+                } else if (svgTabindex) {
+                    reason = "a “tabindex” attribute";
+                } else {
+                    reason = "global ARIA attributes";
+                }
+                warn("The “" + role + "” role does not"
+                        + " affect elements that have " + reason + ".");
+            }
+        }
+
         // ARIA required owner/ancestors
         Set<String> requiredAncestorRoles = REQUIRED_ROLE_ANCESTOR_BY_DESCENDANT.get(
                 role);
@@ -4664,6 +4859,12 @@ public class Assertions extends Checker {
                     child.setHeadingFound();
                 }
             }
+            if ("dialog" == localName
+                    || atts.getIndex("", "popover") > -1) {
+                child.setSavedAutofocus(hasAutofocus);
+                child.setAutofocusScopingRoot();
+                hasAutofocus = false;
+            }
             if ("select" == localName) {
                 boolean hasSize = false;
                 boolean sizeIsOne = false;
@@ -4758,6 +4959,76 @@ public class Assertions extends Checker {
                                 + " not be used on any “summary”"
                                 + " element that is a summary for its parent"
                                 + " “details” element.");
+                    }
+                }
+            }
+            if ("button" == localName
+                    && "select".equals(parent.name)) {
+                boolean selectIsDropdown = true;
+                boolean selectHasMultiple = parent.atts.getIndex(
+                        "", "multiple") > -1;
+                if (parent.atts.getIndex("", "size") > -1) {
+                    String size = trimSpaces(
+                            parent.atts.getValue("", "size"));
+                    try {
+                        int sizeVal = Integer.parseInt(size);
+                        if (sizeVal > 1) {
+                            selectIsDropdown = false;
+                        }
+                    } catch (NumberFormatException e) {
+                    }
+                } else if (selectHasMultiple) {
+                    selectIsDropdown = false;
+                }
+                if (!selectIsDropdown) {
+                    err("A “button” element is only allowed"
+                            + " as a child of a “select”"
+                            + " element that is a drop-down box"
+                            + " (one without a “size”"
+                            + " attribute greater than 1 and without"
+                            + " a “multiple” attribute).");
+                } else {
+                    for (int i = 0; i < atts.getLength(); i++) {
+                        String attLocal = atts.getLocalName(i);
+                        if ("role".equals(attLocal)
+                                || attLocal.startsWith("aria-")) {
+                            err("The “" + attLocal
+                                    + "” attribute must"
+                                    + " not be used on a"
+                                    + " “button” element"
+                                    + " that is a child of a"
+                                    + " “select” element.");
+                        }
+                    }
+                }
+            }
+            if ("selectedcontent" == localName) {
+                boolean insideButtonInSelect = false;
+                for (int i = currentPtr; i >= 0; i--) {
+                    if (stack[i] == null) {
+                        continue;
+                    }
+                    if ("button".equals(stack[i].name)) {
+                        if (i > 0 && stack[i - 1] != null
+                                && "select".equals(
+                                        stack[i - 1].name)) {
+                            insideButtonInSelect = true;
+                        }
+                        break;
+                    }
+                }
+                if (insideButtonInSelect) {
+                    for (int i = 0; i < atts.getLength(); i++) {
+                        String attLocal = atts.getLocalName(i);
+                        if ("role".equals(attLocal)
+                                || attLocal.startsWith("aria-")) {
+                            err("The “" + attLocal + "” attribute"
+                                    + " must not be used on a"
+                                    + " “selectedcontent” element"
+                                    + " inside the “button” part"
+                                    + " of a customizable"
+                                    + " “select” element.");
+                        }
                     }
                 }
             }

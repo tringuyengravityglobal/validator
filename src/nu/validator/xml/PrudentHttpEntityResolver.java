@@ -38,7 +38,7 @@ import nu.validator.vendor.relaxng.datatype.DatatypeException;
 import nu.validator.datatype.ContentSecurityPolicy;
 import nu.validator.datatype.Html5DatatypeException;
 
-import com.shapesecurity.salvation2.Policy;
+import org.htmlunit.csp.Policy;
 import nu.validator.io.BoundedInputStream;
 import nu.validator.io.ObservableInputStream;
 import nu.validator.io.StreamObserver;
@@ -281,7 +281,7 @@ public class PrudentHttpEntityResolver
                                 "Cross-origin requests are prohibited.");
                     }
                 }
-            } catch (GalimatiasParseException e) {
+            } catch (GalimatiasParseException | StringIndexOutOfBoundsException e) {
                 IOException ioe = (IOException) new IOException(
                         e.getMessage()).initCause(e);
                 SAXParseException spe = new SAXParseException(e.getMessage(),

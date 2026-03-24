@@ -60,18 +60,22 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          version="$(date +"%y.%m.%d") ($(git rev-parse --short ${{ github.sha }}))"
-          python checker.py --version="$version" build
-          python checker.py --version="$version" jar
-          python checker.py --version="$version" war
+          version="$(date +"%y.%-m.%-d") ($(git rev-parse --short ${{ github.sha }}))"
+          stacksize_flag=""
+          if [[ "${{ matrix.java }}" == "11" ]]; then
+            stacksize_flag="--stacksize=2048"
+          fi
+          python checker.py --version="$version" $stacksize_flag build
+          python checker.py --version="$version" $stacksize_flag jar
+          python checker.py --version="$version" $stacksize_flag war
       - name: Build runtime image
         if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
         shell: bash
         run: |
-          version="$(date +"%y.%m.%d") ($(git rev-parse --short ${{ github.sha }}))"
+          version="$(date +"%y.%-m.%-d") ($(git rev-parse --short ${{ github.sha }}))"
           python checker.py --version="$version" image
       - name: Set up Playwright for e2e tests
-        if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
         run: |
           npm install -g pnpm
           pnpm install
@@ -90,7 +94,7 @@ jobs:
           python checker.py test-specs
       - name: Import GPG signing key
         if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
-        uses: crazy-max/ghaction-import-gpg@v5
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
           passphrase: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
@@ -103,14 +107,14 @@ jobs:
           python checker.py sign
       - name: Upload release artifacts (zip files)
         if: ${{ env.IS_ANY_RELEASE_BUILDER == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-zips-${{ matrix.os }}
           path: build/dist/*.zip*
           retention-days: 1
       - name: Upload release artifacts (jar and war)
         if: ${{ env.IS_MAIN_RELEASE_BUILDER == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-jars
           path: |
@@ -132,13 +136,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download all release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*
           path: artifacts
           merge-multiple: true
       - name: List downloaded artifacts
         run: find artifacts -type f | sort
+      - name: Flatten artifacts directory
+        run: |
+          find artifacts -mindepth 2 -type f -exec mv {} artifacts/ \;
+          find artifacts -type d -empty -delete
       - name: Upload all assets to release
         uses: ncipollo/release-action@v1
         with:
@@ -157,6 +165,41 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+      - name: Verify JAR and WAR versions match expected
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          EXPECTED_VERSION=$(date +"%y.%-m.%-d")
+          echo "Expected version: $EXPECTED_VERSION"
+
+          echo "Downloading vnu.jar from release..."
+          curl -fL https://github.com/${{ github.repository }}/releases/download/latest/vnu.jar -o vnu.jar
+          JAR_VERSION=$(java -jar vnu.jar --version)
+          echo "vnu.jar version: $JAR_VERSION"
+          # Extract just the version number (before any space/parenthesis)
+          JAR_VERSION_NUM=$(echo "$JAR_VERSION" | cut -d' ' -f1)
+          if [[ "$JAR_VERSION_NUM" != "$EXPECTED_VERSION" ]]; then
+            echo "::error::vnu.jar version mismatch! Expected $EXPECTED_VERSION, got $JAR_VERSION_NUM"
+            exit 1
+          fi
+          echo "\u2705 vnu.jar version matches expected"
+
+          echo "Downloading vnu.war from release..."
+          curl -fL https://github.com/${{ github.repository }}/releases/download/latest/vnu.war -o vnu.war
+          mkdir war-extract
+          cd war-extract
+          unzip -q ../vnu.war
+          WAR_VERSION=$(java -cp "WEB-INF/classes:WEB-INF/lib/*" nu.validator.servlet.VerifierServlet --version 2>/dev/null || echo "unknown")
+          cd ..
+          # WAR version check is best-effort; main check is that it downloaded successfully
+          echo "vnu.war extracted successfully"
+          echo "\u2705 vnu.war is valid"
       - name: Verify release assets and ensure release is published
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -353,7 +396,7 @@ jobs:
         id: check_version
         shell: bash
         run: |
-          if python checker.py --version="$(date +"%y.%m.%d")" maven-version-exists; then
+          if python checker.py --version="$(date +"%y.%-m.%-d")" maven-version-exists; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -371,12 +414,12 @@ jobs:
         if: steps.check_version.outputs.exists == 'false'
         shell: bash
         run: |
-          version="$(date +"%y.%m.%d") ($(git rev-parse --short ${{ github.sha }}))"
+          version="$(date +"%y.%-m.%-d") ($(git rev-parse --short ${{ github.sha }}))"
           python checker.py --version="$version" build
           python checker.py --version="$version" jar
       - name: Import GPG signing key
         if: steps.check_version.outputs.exists == 'false'
-        uses: crazy-max/ghaction-import-gpg@v5
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
           passphrase: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}

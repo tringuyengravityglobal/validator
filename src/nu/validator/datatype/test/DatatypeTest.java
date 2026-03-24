@@ -353,6 +353,12 @@ public class DatatypeTest {
         assertValid("CustomElementName: dot", validator, "my.element-test");
         assertValid("CustomElementName: unicode", validator, "my-\u00e9l\u00e8ment");
         assertValid("CustomElementName: single letter then hyphen", validator, "x-foo");
+        assertValid("CustomElementName: with colon", validator, "andy-custom:menu");
+        assertValid("CustomElementName: colon after hyphen", validator, "my-element:sub");
+        assertValid("CustomElementName: with tilde", validator, "my-element~test");
+        assertValid("CustomElementName: with hash", validator, "my-#element");
+        assertValid("CustomElementName: with at sign", validator, "my-elem@ent");
+        assertValid("CustomElementName: with exclamation", validator, "my-element!");
     }
 
     private static void testCustomElementNameInvalid() {
@@ -579,7 +585,8 @@ public class DatatypeTest {
         assertValid("IriRef: http with path", validator, "http://example.com/path/to/file");
         assertValid("IriRef: http with query", validator, "http://example.com/?foo=bar");
         assertValid("IriRef: http with fragment", validator, "http://example.com/#section");
-        assertValid("IriRef: http with all parts", validator, "http://user:pass@example.com:8080/path?q=1#frag");
+        assertInvalid("IriRef: http with credentials", validator, "http://user:pass@example.com:8080/path?q=1#frag");
+        assertValid("IriRef: http with all parts", validator, "http://example.com:8080/path?q=1#frag");
         assertValid("IriRef: ftp URL", validator, "ftp://ftp.example.com/file");
         assertValid("IriRef: mailto URL", validator, "mailto:user@example.com");
         assertValid("IriRef: file URL", validator, "file:///path/to/file");

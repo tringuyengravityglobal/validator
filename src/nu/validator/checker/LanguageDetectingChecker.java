@@ -624,7 +624,7 @@ public class LanguageDetectingChecker extends Checker {
      */
     @Override
     public void endDocument() throws SAXException {
-        if (documentContent.length() > MIN_CHARS &&
+        if (nonWhitespaceCharacterCount >= MIN_CHARS &&
                 !"0".equals(System.getProperty(
                         "nu.validator.checker.enableLangDetection"))
                 && htmlStartTagLocator != null) {
@@ -821,7 +821,7 @@ public class LanguageDetectingChecker extends Checker {
                     tld = host.substring(host.lastIndexOf(".") + 1);
                 }
             }
-        } catch (GalimatiasParseException e) {
+        } catch (GalimatiasParseException | StringIndexOutOfBoundsException e) {
             throw new RuntimeException(e);
         }
     }
@@ -833,8 +833,11 @@ public class LanguageDetectingChecker extends Checker {
     @Override
     public void startElement(String uri, String localName, String name,
             Attributes atts) throws SAXException {
-        if ("http://www.w3.org/1999/xhtml" != uri
-                || Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
+        if ("http://www.w3.org/1999/xhtml" != uri) {
+            return;
+        }
+        if (Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
+            currentOpenElementsWithSkipName++;
             return;
         }
         if ("html".equals(localName) && "http://www.w3.org/1999/xhtml" == uri) {
@@ -879,9 +882,6 @@ public class LanguageDetectingChecker extends Checker {
                     }
                 }
             }
-        }
-        if (Arrays.binarySearch(SKIP_NAMES, localName) >= 0) {
-            currentOpenElementsWithSkipName++;
         }
     }
 
