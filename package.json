@@ -1,49 +1,25 @@
 {
-  "name": "vnu-jar",
-  "version": "latest",
-  "description": "Provides the Nu Html Checker «vnu.jar» file",
-  "main": "vnu-jar.js",
-  "author": "sideshowbarker@gmail.com",
-  "engines": {
-    "node": ">=0.10"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/validator/validator.git"
-  },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/validator/validator/issues"
-  },
-  "homepage": "https://github.com/validator/validator#readme",
-  "keywords": [
-    "checker",
-    "html",
-    "lint",
-    "linter",
-    "jar",
-    "nu",
-    "validator",
-    "vnu",
-    "w3c"
-  ],
-  "files": [
-    "build/dist/vnu.jar",
-    "vnu-java-downloader.js",
-    "vnu-jar.js"
-  ],
-  "bin": {
-    "vnu": "./vnu-jar.js"
-  },
+  "name": "local-vpn-proxy",
+  "version": "1.0.0",
+  "description": "Local proxy server for IP-restricted URLs",
+  "main": "local-proxy-server.js",
   "scripts": {
-    "postinstall": "node vnu-java-downloader.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "start": "node local-proxy-server.js",
+    "dev": "nodemon local-proxy-server.js"
+  },
+  "keywords": [
+    "proxy",
+    "vpn",
+    "validator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@types/node": "^25.0.3",
-    "vitest": "^4.0.16"
+    "nodemon": "^3.0.1"
   }
 }

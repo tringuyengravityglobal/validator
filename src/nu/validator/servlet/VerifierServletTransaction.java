@@ -396,6 +396,8 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
     private boolean checkErrorPages;
 
+    private boolean showDuplicates;
+
     private boolean schemaIsDefault;
 
     private String userAgent;
@@ -920,11 +922,31 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
                     "http://validator.nu/properties/accept-language",
                     scrub(request.getParameter("acceptlanguage")));
         }
+
+        // Handle custom cookie header from X-Custom-Cookie header
+        String customCookie = request.getHeader("X-Custom-Cookie");
+        if (customCookie != null && !customCookie.trim().isEmpty()) {
+            java.util.Map<String, String> additionalHeaders =
+                (java.util.Map<String, String>) request.getAttribute(
+                    "http://validator.nu/properties/additional-request-headers");
+            if (additionalHeaders == null) {
+                additionalHeaders = new java.util.HashMap<>();
+            }
+            additionalHeaders.put("Cookie", customCookie.trim());
+            request.setAttribute(
+                    "http://validator.nu/properties/additional-request-headers",
+                    additionalHeaders);
+        }
+
         String[] additionalHeaderParams = request.getParameterValues(
                 "additionalrequestheader");
         if (additionalHeaderParams != null) {
             java.util.Map<String, String> additionalHeaders =
-                new java.util.HashMap<>();
+                (java.util.Map<String, String>) request.getAttribute(
+                    "http://validator.nu/properties/additional-request-headers");
+            if (additionalHeaders == null) {
+                additionalHeaders = new java.util.HashMap<>();
+            }
             for (String headerValue : additionalHeaderParams) {
                 int colonIndex = headerValue.indexOf(':');
                 if (colonIndex != -1) {
@@ -955,6 +977,7 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
         if (request.getParameter("showimagereport") != null) {
             imageCollector = new ImageCollector(sourceCode);
         }
+        showDuplicates = (request.getParameter("showduplicates") != null);
 
         String charset = request.getParameter("charset");
         if (charset != null) {
@@ -2178,6 +2201,10 @@ class VerifierServletTransaction implements DocumentModeHandler, SchemaResolver 
 
     void emitWarningsOnlyField() throws SAXException {
         emitter.checkbox("level", "warning", skipInfoMessages);
+    }
+
+    void emitShowDuplicatesField() throws SAXException {
+        emitter.checkbox("showduplicates", "yes", showDuplicates);
     }
 
     void emitCheckErrorPagesField() throws SAXException {
