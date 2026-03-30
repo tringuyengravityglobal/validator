@@ -122,7 +122,7 @@ function initFieldHolders() {
 		multiUrlInput.setAttribute('required', '')
 		multiUrlInput.setAttribute('autofocus', '')
 		multiUrlInput.setAttribute('tabindex', '0')
-		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)')
+		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)\nSupports HTTP Basic Auth: https://user:pass@example.com/\nExample: https://preview:P3PIq6AS1ki@dev.butlermfg.com/')
 		multiUrlInput.cols = 72
 		multiUrlInput.rows = 10
 	}
@@ -372,7 +372,9 @@ function initLocalProxyInput() {
 	helpText.style.marginTop = '10px'
 	helpText.style.marginBottom = '0'
 	helpText.innerHTML = '<strong>Note:</strong> Run local proxy server on your whitelisted machine. ' +
-		'Enter your local IP address (e.g., http://192.168.1.100:3000)'
+		'Enter your local IP address (e.g., http://192.168.1.100:3000).<br>' +
+		'<strong>🔐 HTTP Basic Auth:</strong> URLs with embedded credentials (e.g., https://user:pass@example.com/) are ' +
+		'supported both with and without the proxy. The proxy auto-detects and handles credentials.'
 
 	proxyConfigDiv.appendChild(proxyUrlLabel)
 	proxyConfigDiv.appendChild(proxyUrlInput)
@@ -384,7 +386,7 @@ function initLocalProxyInput() {
 	var proxyLabel = createHtmlElement('label')
 	proxyLabel.setAttribute('for', 'enable-local-proxy')
 	proxyLabel.appendChild(proxyCheckbox)
-	proxyLabel.appendChild(document.createTextNode(' Use Local Proxy (for IP-restricted sites)'))
+	proxyLabel.appendChild(document.createTextNode(' Use Local Proxy (for IP-restricted / htpasswd sites)'))
 
 	// Create container
 	var proxyContainer = createHtmlElement('div')
@@ -520,6 +522,55 @@ function updateProxyStatus(statusDiv, type, message) {
 		statusDiv.style.color = '#666'
 		statusDiv.style.border = '1px solid #ddd'
 	}
+}
+
+/**
+ * Check if a URL contains embedded HTTP Basic Auth credentials
+ * e.g., https://user:pass@example.com/
+ */
+function hasEmbeddedCredentials(url) {
+	try {
+		var parsed = new URL(url)
+		return parsed.username !== '' || parsed.password !== ''
+	} catch (e) {
+		// Fallback: check for user:pass@ pattern
+		return /^https?:\/\/[^\/]*:[^\/]*@/.test(url)
+	}
+}
+
+/**
+ * Strip credentials from a URL and return { cleanUrl, username, password }
+ * e.g., https://user:pass@example.com/ → { cleanUrl: https://example.com/, username: 'user', password: 'pass' }
+ */
+function stripCredentialsFromUrl(url) {
+	try {
+		var parsed = new URL(url)
+		var username = decodeURIComponent(parsed.username)
+		var password = decodeURIComponent(parsed.password)
+		parsed.username = ''
+		parsed.password = ''
+		return {
+			cleanUrl: parsed.toString(),
+			username: username,
+			password: password,
+			hasAuth: username !== '' || password !== ''
+		}
+	} catch (e) {
+		return {
+			cleanUrl: url,
+			username: '',
+			password: '',
+			hasAuth: false
+		}
+	}
+}
+
+/**
+ * Build a Base64-encoded Basic Auth header value from username and password
+ */
+function buildBasicAuthHeader(username, password) {
+	var credentials = username + ':' + password
+	return 'Basic ' + btoa(credentials)
 }
 
 function initWarningsOnly() {
@@ -1608,11 +1659,21 @@ function handleMultiUrlValidation() {
 
 	if (urls.length === 0) return
 
+	// Detect auth URLs
+	var authUrlCount = 0
+	urls.forEach(function (url) {
+		if (hasEmbeddedCredentials(url)) authUrlCount++
+	})
+
 	// Clear results area and show loading message
 	var resultsDiv = document.getElementById('results')
 	if (!resultsDiv) return
 
-	resultsDiv.innerHTML = '<h2 class="success">Validating ' + urls.length + ' URL(s)...</h2>'
+	var statusMsg = 'Validating ' + urls.length + ' URL(s)...'
+	if (authUrlCount > 0) {
+		statusMsg += ' (' + authUrlCount + ' with HTTP Basic Auth)'
+	}
+	resultsDiv.innerHTML = '<h2 class="success">' + statusMsg + '</h2>'
 
 	// Create container for all URL results
 	var allResults = {
@@ -1655,17 +1716,8 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		}
 	}
 
-	// Check if showsource checkbox is checked
-	var showSourceCheckbox = document.getElementById('showsource')
-	if (showSourceCheckbox && showSourceCheckbox.checked) {
-		formData.append('showsource', 'yes')
-	}
-
-	// Check if showduplicates checkbox is checked
-	var showDuplicatesCheckbox = document.getElementById('showduplicates')
-	if (showDuplicatesCheckbox && showDuplicatesCheckbox.checked) {
-		formData.append('showduplicates', 'yes')
-	}
+	// Note: All form checkboxes (showsource, showduplicates, level, checkerrorpages)
+	// are already handled by the generic loop above.
 
 	// If using local proxy, fetch via proxy first
 	if (useLocalProxy) {
@@ -1890,12 +1942,13 @@ function validateContent(content, originalUrl, index, allResults, resultsDiv, fo
 	// Use multipart/form-data to send content for validation
 	var formDataObj = new FormData()
 	
-	// Create a Blob from content and add as file
-	var blob = new Blob([content], { type: 'text/html' })
-	formDataObj.append('file', blob, 'document.html')
+	// IMPORTANT: Add all text parameters BEFORE the file blob.
+	// The server's MultipartFormDataFilter breaks out of its parsing loop
+	// as soon as it encounters the first file field, so any text params
+	// appended after the file (like level=warning) would be silently ignored.
 	formDataObj.append('out', 'html')
 	
-	// Add other parameters
+	// Add other parameters (level, showsource, showduplicates, etc.)
 	var entries = Array.from(formData.entries())
 	for (var i = 0; i < entries.length; i++) {
 		var pair = entries[i]
@@ -1903,6 +1956,10 @@ function validateContent(content, originalUrl, index, allResults, resultsDiv, fo
 			formDataObj.append(pair[0], pair[1])
 		}
 	}
+	
+	// Add the file blob LAST so all text parameters are parsed first
+	var blob = new Blob([content], { type: 'text/html' })
+	formDataObj.append('file', blob, 'document.html')
 	
 	xhr.open('POST', window.location.pathname, true)
 	xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')

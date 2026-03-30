@@ -25,7 +25,9 @@ package nu.validator.xml;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -302,7 +304,28 @@ public class PrudentHttpEntityResolver
                 }
                 throw spe;
             }
+            // Extract HTTP Basic Auth credentials from userInfo
+            // (e.g., https://user:pass@example.com/)
+            String basicAuthHeader = null;
+            String userInfo = url.userInfo();
+            if (userInfo != null && !userInfo.isEmpty()) {
+                // Decode percent-encoded userInfo and build Basic Auth header
+                String decodedUserInfo = io.mola.galimatias.URLUtils
+                        .percentDecode(userInfo);
+                basicAuthHeader = "Basic " + Base64.getEncoder()
+                        .encodeToString(decodedUserInfo
+                                .getBytes(StandardCharsets.UTF_8));
+                // Strip credentials from URL for the actual request
+                try {
+                    url = url.withUsername("").withPassword("");
+                } catch (GalimatiasParseException e) {
+                    // If we can't strip credentials, continue with original
+                    log4j.warn("Could not strip credentials from URL", e);
+                }
+                log4j.info("Using HTTP Basic Auth for request");
+            }
             systemId = url.toString();
+            final String authHeader = basicAuthHeader;
             // Ensure the HTTP client is initialized before creating requests
             ensureClientStarted();
             try {
@@ -328,6 +351,10 @@ public class PrudentHttpEntityResolver
                 headers.put("User-Agent", userAgent);
                 headers.put("Accept", buildAccept());
                 headers.put("Accept-Encoding", "gzip");
+                // Add Basic Auth header if credentials were in URL
+                if (authHeader != null) {
+                    headers.put("Authorization", authHeader);
+                }
                 if (request != null && request.getAttribute(
                         "http://validator.nu/properties/accept-language") != null) {
                     headers.put("Accept-Language", (String) request.getAttribute(
