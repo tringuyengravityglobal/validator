@@ -2746,11 +2746,15 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	var duplicateCheckbox = document.getElementById('showduplicates')
 	var showDuplicatesSection = duplicateCheckbox ? duplicateCheckbox.checked : false
 
-	// Only create duplicate section if there are 2 or more URLs
+	// Only create duplicate section if there are 2 or more SUCCESSFULLY VALIDATED URLs
+	// URLs that returned 404/401/etc have results=null, so they produce no scan errors
+	// and should not count toward the shared errors threshold
 	var duplicateSection = null
 	var duplicateMessages = null
+	var validatedUrlCount = allResults.urls.filter(function (u) { return u.results !== null && u.results !== undefined }).length
 
-	if (allResults.urls.length >= 2) {
+	console.log('validatedUrlCount: ' + validatedUrlCount)
+	if (validatedUrlCount >= 2) {
 		// Detect duplicate errors/warnings across URLs
 		duplicateMessages = findDuplicateMessages(allResults)
 
