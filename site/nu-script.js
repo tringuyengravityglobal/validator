@@ -122,7 +122,7 @@ function initFieldHolders() {
 		multiUrlInput.setAttribute('required', '')
 		multiUrlInput.setAttribute('autofocus', '')
 		multiUrlInput.setAttribute('tabindex', '0')
-		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)\nSupports HTTP Basic Auth: https://user:pass@example.com/\nExample: https://preview:P3PIq6AS1ki@dev.butlermfg.com/')
+		multiUrlInput.setAttribute('placeholder', 'Enter URLs (one per line)')
 		multiUrlInput.cols = 72
 		multiUrlInput.rows = 10
 	}
@@ -468,7 +468,7 @@ function testProxyConnection(proxyUrl, statusDiv) {
 	xhr.timeout = 5000
 	xhr.open('GET', normalizedUrl + '/health', true)
 
-	xhr.onload = function() {
+	xhr.onload = function () {
 		if (xhr.status === 200) {
 			try {
 				var response = JSON.parse(xhr.responseText)
@@ -767,7 +767,7 @@ function replaceSuccessFailure() {
 	// Check if we're in multi-URL mode
 	var isMultiUrl = document.getElementById('multi-url-results') !== null
 
-	if (document.querySelector(".non-document-error") !== null) {
+	if (document.querySelector(".non-document-error") !== null && !isMultiUrl) {
 		successfailure.className = "fatalfailure"
 		successfailure.textContent = "Document checking not completed."
 		successfailure.textContent += " The result cannot be determined due to a non-document-error."
@@ -1190,7 +1190,10 @@ function initFilters() {
 	if (!document.getElementsByClassName || !document.querySelectorAll) {
 		return
 	}
-	if (document.getElementsByClassName('non-document-error').length > 0) {
+	// In multi-URL mode, don't abort filters just because one URL has a non-document-error.
+	// The per-URL error display handles those individually.
+	var isMultiUrlMode = document.getElementById('multi-url-results') !== null
+	if (!isMultiUrlMode && document.getElementsByClassName('non-document-error').length > 0) {
 		replaceSuccessFailure()
 		return
 	}
@@ -1755,6 +1758,48 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 			var parser = new DOMParser()
 			var doc = parser.parseFromString(xhr.responseText, 'text/html')
 
+			// Check if validator returned a non-document-error (e.g. target URL returned 404, 401, etc.)
+			var nonDocError = doc.querySelector('.non-document-error')
+			if (nonDocError) {
+				// Extract the error details from the non-document-error
+				var errorText = nonDocError.textContent || nonDocError.innerText || ''
+				var httpStatusMatch = errorText.match(/(\d{3})\b/)
+				var httpStatus = httpStatusMatch ? httpStatusMatch[1] : ''
+				var statusDescriptions = {
+					'400': 'Bad Request',
+					'401': 'Unauthorized',
+					'403': 'Forbidden',
+					'404': 'Not Found',
+					'405': 'Method Not Allowed',
+					'408': 'Request Timeout',
+					'410': 'Gone',
+					'429': 'Too Many Requests',
+					'500': 'Internal Server Error',
+					'502': 'Bad Gateway',
+					'503': 'Service Unavailable',
+					'504': 'Gateway Timeout'
+				}
+				var statusDesc = httpStatus && statusDescriptions[httpStatus] ? httpStatus + ' ' + statusDescriptions[httpStatus] : ''
+				var displayError = statusDesc
+					? '❌ Status: ' + statusDesc + ' | Unable to validate'
+					: '❌ Unable to validate: ' + errorText.trim().substring(0, 200)
+
+				allResults.urls[index] = {
+					url: url,
+					results: null,
+					status: null,
+					nonDocumentError: displayError,
+					error: displayError
+				}
+
+				allResults.completed++
+				updateValidationProgress(allResults, resultsDiv)
+				if (allResults.completed === allResults.total) {
+					displayMultiUrlResults(allResults, resultsDiv)
+				}
+				return
+			}
+
 			// Extract results
 			var resultsOl = doc.querySelector('#results > ol:first-child')
 			var successFailure = doc.querySelector('.success, .failure, .fatalfailure')
@@ -2081,6 +2126,8 @@ function updateMultiUrlOverallStatus(multiUrlContainer) {
 	if (!overallStatus) return
 
 	var totalUrls = parseInt(overallStatus.getAttribute('data-total-urls') ?? '0')
+	var failedUrls = parseInt(overallStatus.getAttribute('data-failed-urls') ?? '0')
+	var validatedCount = totalUrls - failedUrls
 
 	// Count visible errors and warnings
 	var visibleErrors = multiUrlContainer.querySelectorAll('.error:not(.hidden)')
@@ -2088,12 +2135,23 @@ function updateMultiUrlOverallStatus(multiUrlContainer) {
 
 	var errorCount = visibleErrors.length
 	var warningCount = visibleWarnings.length
-	var hasErrors = errorCount > 0
+	var hasErrors = errorCount > 0 || failedUrls > 0
 
 	// Update the status text and class
 	if (hasErrors || warningCount > 0) {
 		overallStatus.className = 'failure'
-		overallStatus.textContent = 'Validation completed for ' + totalUrls + ' URL(s). Found ' + errorCount + ' error(s) and ' + warningCount + ' warning(s).'
+		var statusText = 'Validation completed for ' + totalUrls + ' URL(s).'
+		if (failedUrls > 0) {
+			statusText += ' ' + failedUrls + ' URL(s) failed to validate.'
+		}
+		if (errorCount > 0 || warningCount > 0) {
+			statusText += ' Found ' + errorCount + ' error(s) and ' + warningCount + ' warning(s)'
+			if (failedUrls > 0) {
+				statusText += ' in ' + validatedCount + ' validated URL(s)'
+			}
+			statusText += '.'
+		}
+		overallStatus.textContent = statusText
 	} else {
 		overallStatus.className = 'success'
 		overallStatus.textContent = 'Validation completed for ' + totalUrls + ' URL(s). No errors or warnings to show.'
@@ -2203,10 +2261,11 @@ function findDuplicateMessages(allResults) {
 
 	// Filter to include messages that appear in 2+ URLs
 	// Separate into: common (all URLs) and duplicate (2+ URLs but not all)
-	var totalUrls = allResults.urls.length
-	var commonErrors = []      // Errors in ALL URLs
+	// Only count URLs that were actually validated (exclude failed/non-document-error URLs)
+	var totalUrls = allResults.urls.filter(function (u) { return u.results !== null && u.results !== undefined }).length
+	var commonErrors = []      // Errors in ALL validated URLs
 	var duplicateErrors = []   // Errors in 2+ URLs but not all
-	var commonWarnings = []    // Warnings in ALL URLs
+	var commonWarnings = []    // Warnings in ALL validated URLs
 	var duplicateWarnings = [] // Warnings in 2+ URLs but not all
 
 	for (var msgText in messageMap.errors) {
@@ -2345,6 +2404,9 @@ function showAllMessagesInUrls(duplicateMessages, allResults) {
 function updateUrlCounts() {
 	var urlSections = document.querySelectorAll('.url-result-section')
 	urlSections.forEach(function (urlSection, index) {
+		// Skip non-document-error URLs (their count text shows the error message)
+		if (urlSection.getAttribute('data-non-document-error') === 'true') return
+
 		var countText = urlSection.querySelector('.count-text')
 		if (!countText) return
 
@@ -2633,9 +2695,10 @@ function extractLocationInfo(messageEl) {
 function displayMultiUrlResults(allResults, resultsDiv) {
 	resultsDiv.innerHTML = ''
 
-	// Count total errors and warnings
+	// Count total errors, warnings, and failed URLs
 	var totalErrors = 0
 	var totalWarnings = 0
+	var failedUrls = 0
 	var hasErrors = false
 
 	allResults.urls.forEach(function (urlResult) {
@@ -2646,7 +2709,13 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 			totalWarnings += warnings.length
 			if (errors.length > 0) hasErrors = true
 		}
-		if (urlResult.error) hasErrors = true
+		if (urlResult.nonDocumentError) {
+			failedUrls++
+			hasErrors = true
+		} else if (urlResult.error) {
+			failedUrls++
+			hasErrors = true
+		}
 	})
 
 	// Display overall status
@@ -2655,9 +2724,18 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 	overallStatus.setAttribute('data-total-urls', allResults.total)
 	overallStatus.setAttribute('data-total-errors', totalErrors)
 	overallStatus.setAttribute('data-total-warnings', totalWarnings)
+	overallStatus.setAttribute('data-failed-urls', failedUrls)
+	var validatedCount = allResults.total - failedUrls
 	if (hasErrors) {
 		overallStatus.className = 'failure'
-		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). Found ' + totalErrors + ' error(s) and ' + totalWarnings + ' warning(s).'
+		var statusText = 'Validation completed for ' + allResults.total + ' URL(s).'
+		if (failedUrls > 0) {
+			statusText += ' ' + failedUrls + ' URL(s) failed to validate.'
+		}
+		if (totalErrors > 0 || totalWarnings > 0) {
+			statusText += ' Found ' + totalErrors + ' error(s) and ' + totalWarnings + ' warning(s) in ' + validatedCount + ' validated URL(s).'
+		}
+		overallStatus.textContent = statusText
 	} else {
 		overallStatus.className = 'success'
 		overallStatus.textContent = 'Validation completed for ' + allResults.total + ' URL(s). No errors found.'
@@ -2810,6 +2888,9 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 		var urlSection = createHtmlElement('div')
 		urlSection.className = 'url-result-section'
 		urlSection.id = 'url-' + index
+		if (urlResult.nonDocumentError) {
+			urlSection.setAttribute('data-non-document-error', 'true')
+		}
 
 		// URL header with toggle
 		var urlHeader = createHtmlElement('div')
@@ -2833,9 +2914,13 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 
 		var countText = createHtmlElement('span')
 		countText.className = 'count-text'
-		if (urlResult.error) {
+		if (urlResult.nonDocumentError) {
+			countText.textContent = '(' + urlResult.nonDocumentError + ')'
+			countText.className += ' url-error-status'
+			countText.style.color = '#b71c1c'
+		} else if (urlResult.error) {
 			countText.textContent = '(Error: ' + urlResult.error + ')'
-			countText.className += ' error'
+			countText.className += ' url-error-status'
 		} else {
 			countText.textContent = '(' + errorCount + ' error(s), ' + warningCount + ' warning(s))'
 		}
@@ -2850,9 +2935,19 @@ function displayMultiUrlResults(allResults, resultsDiv) {
 
 		if (urlResult.error) {
 			var errorMsg = createHtmlElement('p')
-			errorMsg.style.color = '#f00'
-			errorMsg.style.padding = '10px'
-			errorMsg.textContent = 'Failed to validate: ' + urlResult.error
+			errorMsg.style.padding = '12px 15px'
+			errorMsg.style.borderRadius = '4px'
+			if (urlResult.nonDocumentError) {
+				// Non-document-error: target URL returned a non-200 status (404, 401, etc.)
+				errorMsg.style.color = '#b71c1c'
+				errorMsg.style.backgroundColor = '#ffebee'
+				errorMsg.style.border = '1px solid #ef9a9a'
+				errorMsg.style.fontWeight = 'bold'
+				errorMsg.textContent = urlResult.nonDocumentError
+			} else {
+				errorMsg.style.color = '#f00'
+				errorMsg.textContent = 'Failed to validate: ' + urlResult.error
+			}
 			resultsContent.appendChild(errorMsg)
 		} else {
 			// Errors/Warnings Section
