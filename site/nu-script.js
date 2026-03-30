@@ -338,7 +338,7 @@ function initLocalProxyInput() {
 	proxyUrlLabel.style.display = 'block'
 	proxyUrlLabel.style.marginBottom = '5px'
 	proxyUrlLabel.style.fontWeight = 'bold'
-	
+
 	var proxyUrlInput = createHtmlElement('input')
 	proxyUrlInput.type = 'text'
 	proxyUrlInput.id = 'local-proxy-url'
@@ -399,7 +399,7 @@ function initLocalProxyInput() {
 	// Insert before cookie container or inputregion
 	var cookieContainer = document.getElementById('cookie-container')
 	var inputRegionElement = document.getElementById('inputregion')
-	
+
 	if (cookieContainer && cookieContainer.parentNode) {
 		cookieContainer.parentNode.insertBefore(proxyContainer, cookieContainer)
 	} else if (inputRegionElement && inputRegionElement.parentNode) {
@@ -415,7 +415,7 @@ function initLocalProxyInput() {
 			proxyCheckbox.checked = true
 			proxyConfigDiv.style.display = 'block'
 			// Auto-test connection on load
-			setTimeout(function() {
+			setTimeout(function () {
 				testProxyConnection(proxyUrlInput.value, statusDiv)
 			}, 500)
 		}
@@ -446,7 +446,7 @@ function initLocalProxyInput() {
 	}, false)
 
 	// Test button handler
-	testButton.addEventListener('click', function() {
+	testButton.addEventListener('click', function () {
 		var url = proxyUrlInput.value.trim()
 		if (!url) {
 			updateProxyStatus(statusDiv, 'error', '❌ Please enter proxy URL')
@@ -458,16 +458,16 @@ function initLocalProxyInput() {
 
 function testProxyConnection(proxyUrl, statusDiv) {
 	if (!proxyUrl) return
-	
+
 	updateProxyStatus(statusDiv, 'testing', '⏳ Testing connection...')
-	
+
 	// Normalize URL: remove trailing slashes
 	var normalizedUrl = proxyUrl.trim().replace(/\/+$/, '')
-	
+
 	var xhr = new XMLHttpRequest()
 	xhr.timeout = 5000
 	xhr.open('GET', normalizedUrl + '/health', true)
-	
+
 	xhr.onload = function() {
 		if (xhr.status === 200) {
 			try {
@@ -489,17 +489,17 @@ function testProxyConnection(proxyUrl, statusDiv) {
 			updateProxyStatus(statusDiv, 'error', '❌ Connection failed (HTTP ' + xhr.status + ')')
 		}
 	}
-	
-	xhr.onerror = function() {
+
+	xhr.onerror = function () {
 		localProxyAvailable = false
 		updateProxyStatus(statusDiv, 'error', '❌ Cannot connect to proxy. Make sure it\'s running.')
 	}
-	
-	xhr.ontimeout = function() {
+
+	xhr.ontimeout = function () {
 		localProxyAvailable = false
 		updateProxyStatus(statusDiv, 'error', '❌ Connection timeout')
 	}
-	
+
 	xhr.send()
 }
 
@@ -758,7 +758,7 @@ function injectHyperlinks() {
 	linkify(info, "https://www.w3.org/International/articles/ruby/markup.en.html#visual",
 		"https://www.w3.org/International/articles/ruby/markup.en.html#visual",
 		"W3C guidance on ruby markup")
-	}
+}
 
 function replaceSuccessFailure() {
 	successfailure = document.querySelector(".success, .failure")
@@ -1052,7 +1052,7 @@ function copySourceIntoTextArea() {
 		var cssEpilog = "</style>"
 		var v = textarea.value
 		if (v.indexOf(cssProlog) === 0
-				&& v.lastIndexOf(cssEpilog) === v.length - cssEpilog.length) {
+			&& v.lastIndexOf(cssEpilog) === v.length - cssEpilog.length) {
 			v = v.substring(cssProlog.length, v.length - cssEpilog.length)
 			if (v.charAt(0) === '\n') v = v.substring(1)
 			if (v.charAt(v.length - 1) === '\n') v = v.substring(0, v.length - 1)
@@ -1716,8 +1716,17 @@ function validateSingleUrl(url, index, allResults, resultsDiv) {
 		}
 	}
 
-	// Note: All form checkboxes (showsource, showduplicates, level, checkerrorpages)
-	// are already handled by the generic loop above.
+	// Check if showsource checkbox is checked
+	var showSourceCheckbox = document.getElementById('showsource')
+	if (showSourceCheckbox && showSourceCheckbox.checked) {
+		formData.append('showsource', 'yes')
+	}
+
+	// Check if showduplicates checkbox is checked
+	var showDuplicatesCheckbox = document.getElementById('showduplicates')
+	if (showDuplicatesCheckbox && showDuplicatesCheckbox.checked) {
+		formData.append('showduplicates', 'yes')
+	}
 
 	// If using local proxy, fetch via proxy first
 	if (useLocalProxy) {
@@ -1852,11 +1861,11 @@ function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
 		customHeaders['Cookie'] = cookieTextarea.value.trim()
 	}
 
-	fetchXhr.onload = function() {
+	fetchXhr.onload = function () {
 		if (fetchXhr.status === 200) {
 			try {
 				var proxyResponse = JSON.parse(fetchXhr.responseText)
-				
+
 				if (proxyResponse.success) {
 					// Step 2: Send fetched content to validator
 					validateContent(proxyResponse.data, url, index, allResults, resultsDiv, formData)
@@ -1902,7 +1911,7 @@ function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
 		}
 	}
 
-	fetchXhr.onerror = function() {
+	fetchXhr.onerror = function () {
 		allResults.urls[index] = {
 			url: url,
 			results: null,
@@ -1916,7 +1925,7 @@ function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
 		}
 	}
 
-	fetchXhr.ontimeout = function() {
+	fetchXhr.ontimeout = function () {
 		allResults.urls[index] = {
 			url: url,
 			results: null,
@@ -1938,17 +1947,16 @@ function fetchViaLocalProxy(url, index, allResults, resultsDiv, formData) {
 
 function validateContent(content, originalUrl, index, allResults, resultsDiv, formData) {
 	var xhr = new XMLHttpRequest()
-	
+
 	// Use multipart/form-data to send content for validation
 	var formDataObj = new FormData()
-	
-	// IMPORTANT: Add all text parameters BEFORE the file blob.
-	// The server's MultipartFormDataFilter breaks out of its parsing loop
-	// as soon as it encounters the first file field, so any text params
-	// appended after the file (like level=warning) would be silently ignored.
+
+	// Create a Blob from content and add as file
+	var blob = new Blob([content], { type: 'text/html' })
+	formDataObj.append('file', blob, 'document.html')
 	formDataObj.append('out', 'html')
-	
-	// Add other parameters (level, showsource, showduplicates, etc.)
+
+	// Add other parameters
 	var entries = Array.from(formData.entries())
 	for (var i = 0; i < entries.length; i++) {
 		var pair = entries[i]
@@ -1956,11 +1964,7 @@ function validateContent(content, originalUrl, index, allResults, resultsDiv, fo
 			formDataObj.append(pair[0], pair[1])
 		}
 	}
-	
-	// Add the file blob LAST so all text parameters are parsed first
-	var blob = new Blob([content], { type: 'text/html' })
-	formDataObj.append('file', blob, 'document.html')
-	
+
 	xhr.open('POST', window.location.pathname, true)
 	xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
 	xhr.setRequestHeader('Pragma', 'no-cache')
